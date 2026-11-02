@@ -126,7 +126,6 @@ Production: `npm run build && npx vite preview --port 4173`. Rebuilding cores ne
 - On the very first visit the page isn't cross-origin isolated yet, so it uses message-port audio (works fine; isolation
   kicks in from the next visit). I removed the usual forced reload because it could restart a game you'd just launched.
 - Touch layouts are saved per system, not as multiple named presets.
-- Rewinding is silent (no reversed audio).
 - If a *player* disconnects mid-match, everyone continues offline rather than continuing the match.
 - Hold-to-rewind on the overlay button relies on pointer events; long-press may show a context menu on some mobile
   browsers outside the game area.

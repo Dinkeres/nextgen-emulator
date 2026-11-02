@@ -10,6 +10,7 @@ import type { ToWorker, FromWorker, FFAudio } from './protocol.ts';
 let core: Core;
 const carry = [0, 0, 0, 0];
 const silence = new Float32Array(4096 * 2);
+let revBuf = new Int16Array(0);
 let renderer: Renderer | null = null;
 let rewind: RewindBuffer | null = null;
 let rollback: Rollback | null = null;
@@ -140,7 +141,17 @@ function tick(now: number, dt: number, inputs: number[], vsync: boolean) {
     let st: Uint8Array | null = null;
     const steps = Math.max(1, Math.round(2 / S.rewindGran));
     for (let i = 0; i < steps; i++) { const s = rewind.pop(); if (s) st = s; else break; }
-    if (st) { core.loadState(st); core.run(RUN_VIDEO); present(); S.emuFrames++; }
+    if (st) {
+      core.loadState(st); core.run(RUN_VIDEO | RUN_AUDIO); present(); S.emuFrames++;
+      // play this frame's sound backwards (quieter) for the classic rewind effect
+      const a = core.audio();
+      if (a.length) {
+        if (revBuf.length < a.length) revBuf = new Int16Array(a.length);
+        const n = a.length >> 1;
+        for (let i = 0; i < n; i++) { revBuf[i * 2] = a[(n - 1 - i) * 2]; revBuf[i * 2 + 1] = a[(n - 1 - i) * 2 + 1]; }
+        pushAudio(revBuf.subarray(0, a.length), 1, 0.5);
+      }
+    }
     // keep the audio ring primed with silence so releasing rewind doesn't glitch
     const want = S.targetFill - fill();
     if (want > 0) writeFrames(silence.subarray(0, Math.min(want, silence.length >> 1) * 2));
@@ -256,7 +267,7 @@ function primeAudio() {
 
 let resampleBuf = new Float32Array(8192);
 /** Linear resample int16 stereo to the output rate with dynamic rate control. */
-function pushAudio(src: Int16Array, timeScale: number) {
+function pushAudio(src: Int16Array, timeScale: number, gain = 1) {
   const frames = src.length >> 1;
   if (!frames || (!S.ring && !S.port)) return;
   const f = fill();
@@ -267,7 +278,7 @@ function pushAudio(src: Int16Array, timeScale: number) {
   const step = core.av.sampleRate / S.outRate * timeScale * (1 + err * 0.005);
   const outMax = Math.ceil(frames / step) + 4;
   if (resampleBuf.length < outMax * 2) resampleBuf = new Float32Array(outMax * 2);
-  const v = S.volume / 32768;
+  const v = S.volume * gain / 32768;
   let pos = S.pos, o = 0;
   while (pos < frames) {
     const i = Math.floor(pos), fr = pos - i;

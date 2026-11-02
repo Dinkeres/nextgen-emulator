@@ -39,7 +39,8 @@ Every judgment call made while building this autonomously, with the reason. Newe
     and audio drift is absorbed by dynamic rate control. Otherwise (120/144 Hz, PAL, slow-mo) a fixed-step accumulator
     decides how many frames to run. A watchdog timer keeps the game running if rAF stalls while the page is visible.
 12. **Audio**: AudioWorklet ring buffer; linear resampling in the worker; DRC nudges the rate ±0.5 % toward a 45 ms
-    target (70 ms on touch devices). Silence is fed during rewind so releasing it never glitches.
+    target (70 ms on touch devices). While rewinding, each restored frame's audio is played backwards at half volume (topped up with silence) so
+    rewinding sounds like rewinding and releasing it never glitches.
 13. **Input**: positional gamepad mapping (bottom face = libretro B …), correct for Xbox/PlayStation/Switch pads under the
     W3C standard mapping. Presses are *latched* until the next poll so taps shorter than a frame are never lost.
 
