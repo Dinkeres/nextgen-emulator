@@ -110,10 +110,10 @@ async function init(m: Extract<ToWorker, { type: 'init' }>) {
     S.port.onmessage = ev => { S.portFill = ev.data.fill; S.portUnder = ev.data.underruns; };
   }
   configureRewind(m.rewind?.enabled ?? true, m.rewind?.seconds ?? 30, m.rewind?.budgetMB ?? 96);
-  if (m.state) core.loadState(new Uint8Array(m.state));
+  const resumed = m.state ? core.loadState(new Uint8Array(m.state)) : false;
   // draw the first frame so the screen isn't black before the first tick
   core.run(RUN_VIDEO); present();
-  post({ type: 'ready', av: core.av, coreName: core.name, coreVersion: core.version, options: core.options(), stateSize: core.stateSize(), hasSram: !!core.sram() });
+  post({ type: 'ready', av: core.av, coreName: core.name, coreVersion: core.version, options: core.options(), stateSize: core.stateSize(), hasSram: !!core.sram(), resumed });
 }
 
 function configureRewind(enabled: boolean, seconds: number, budgetMB: number) {

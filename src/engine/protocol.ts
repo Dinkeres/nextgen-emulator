@@ -40,7 +40,7 @@ export interface Stats {
 }
 
 export type FromWorker =
-  | { type: 'ready'; av: AVInfo; coreName: string; coreVersion: string; options: CoreOption[]; stateSize: number; hasSram: boolean }
+  | { type: 'ready'; av: AVInfo; coreName: string; coreVersion: string; options: CoreOption[]; stateSize: number; hasSram: boolean; resumed: boolean }
   | ({ type: 'stats' } & Stats)
   | { type: 'state'; id: number; state: Uint8Array; thumb: Blob | null; frame: number }
   | { type: 'loaded'; id: number; ok: boolean }

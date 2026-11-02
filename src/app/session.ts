@@ -62,7 +62,8 @@ export class Session {
     if (opts.netplay) return; // NetSession resumes after the start barrier
     const cheats = this.game.cheats?.filter(c => c.on).map(c => c.code);
     if (cheats?.length) { this.emu.cheats(cheats); toast(`${cheats.length} cheat${cheats.length > 1 ? 's' : ''} active`, 'info', 'info'); }
-    if (state) toast('Resumed where you left off', 'history', 'info');
+    if (state && this.emu.resumed) toast('Resumed where you left off', 'history', 'info');
+    else if (state) toast("Couldn't load the last save — starting fresh. Your other saves are untouched.", 'alert', 'warn', 5000);
     await this.emu.resume();
     await db.updateGame(this.game.id, { lastPlayed: Date.now() });
     this.scheduleAuto();

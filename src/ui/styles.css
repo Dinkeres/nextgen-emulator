@@ -485,3 +485,4 @@ main.page { padding: 24px var(--gutter) calc(48px + env(safe-area-inset-bottom))
   .player.touch-mode .hud.bottom { display: none; }
 }
 :root[data-theme='light'] a { color: #0e7490; }
+.player { -webkit-touch-callout: none; }

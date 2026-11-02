@@ -47,6 +47,7 @@ export class Emulator {
   coreName = '';
   coreOptions: CoreOption[] = [];
   hasSram = false;
+  resumed = false;
   paused = true;
   displayHz = 60;
   /** Called every animation frame; returns input masks per port. */
@@ -67,6 +68,10 @@ export class Emulator {
       processorOptions: { sab, capacity: AUDIO_CAP },
     });
     this.node.connect(this.ctx.destination);
+    // Safari only starts audio from inside a user gesture: retry on the next tap/key
+    const unlock = () => { if (this.ctx.state !== 'running' && !this.paused) this.ctx.resume().catch(() => {}); };
+    for (const ev of ['pointerdown', 'keydown', 'touchend']) window.addEventListener(ev, unlock, { capture: true });
+    this.unlockOff = () => { for (const ev of ['pointerdown', 'keydown', 'touchend']) window.removeEventListener(ev, unlock, { capture: true }); };
     if (!shared) {
       const ch = new MessageChannel();
       this.node.port.postMessage({ port: ch.port1 }, [ch.port1]);
@@ -92,7 +97,7 @@ export class Emulator {
     if (port) transfer.push(port);
     this.worker.postMessage(msg, transfer);
     const r = await ready as Extract<FromWorker, { type: 'ready' }>;
-    this.av = r.av; this.coreName = r.coreName; this.coreOptions = r.options; this.hasSram = r.hasSram;
+    this.av = r.av; this.coreName = r.coreName; this.coreOptions = r.options; this.hasSram = r.hasSram; this.resumed = r.resumed;
     this.set({ ffAudio: o.ffAudio, volume: o.volume, vsyncLock: o.vsyncLock });
 
     this.ro = new ResizeObserver(() => this.resize());
@@ -129,6 +134,7 @@ export class Emulator {
     return new Promise(res => { this.pending.set(msg.id, res as (v: unknown) => void); this.worker.postMessage(msg, transfer); });
   }
 
+  private unlockOff = () => {};
   private lastRaf = 0;
   private backup = 0;
   private loop(now: number) {
@@ -217,6 +223,7 @@ export class Emulator {
   destroy() {
     cancelAnimationFrame(this.raf);
     clearInterval(this.backup);
+    this.unlockOff();
     this.ro?.disconnect();
     this.worker?.terminate();
     this.node?.disconnect();

@@ -206,6 +206,7 @@ export function Player({ game, slot, fresh, nav, net }: { game: Game; slot?: num
 
   return (
     <div class={`player ${hud || menu ? '' : 'hide-cursor'} ${touchMode && !menu ? 'touch-mode' : ''}`} ref={rootRef} style={{ '--sys': sys.color }}
+      onContextMenu={e => e.preventDefault()}
       onPointerMove={e => { if (e.pointerType === 'mouse') poke(); }}
       onPointerDown={e => { if (!(e.target as HTMLElement).closest('.tbtn, .dpad, .hud, .pause')) poke(); }}>
       <canvas class="screen" ref={canvasRef} aria-label={`${game.title} game screen`} />
