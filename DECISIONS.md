@@ -82,7 +82,8 @@ Every judgment call made while building this autonomously, with the reason. Newe
 ## Frontend
 29. **Preact + hand-written CSS design system** (≈50 KB gzipped app JS). Fonts and icons are bundled so the PWA works fully offline.
 30. One service worker does both offline caching and COOP/COEP isolation; its cache name includes the build id so updated
-    cores are never served stale. It reloads the page once on first visit to become isolated, guarded against loops.
+    cores are never served stale. It never force-reloads the page to become isolated (that could restart a game the
+    player just launched); the first visit uses message-port audio and later visits are isolated.
 31. Touch controls: one custom layout saved per system (drag, resize, opacity), instead of multiple named presets.
 32. Cheats use the cores' own parsers (Game Genie, Pro Action Replay, GameShark, CodeBreaker… whatever each core supports).
 

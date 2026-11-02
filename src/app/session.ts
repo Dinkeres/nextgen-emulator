@@ -21,6 +21,9 @@ export class Session {
   private dirty = false; // something happened since the last auto-save
   private ended = false;
   private listeners: [EventTarget, string, EventListener][] = [];
+  /** Recent snapshot kept on the main thread so a closing tab can persist it without a worker round-trip. */
+  private latest: { state: Uint8Array; thumb: Blob | null; at: number } | null = null;
+  private snapTimer = 0;
 
   constructor(public game: Game, canvas: HTMLCanvasElement) {
     this.emu = new Emulator(canvas, {
@@ -65,8 +68,10 @@ export class Session {
     this.scheduleAuto();
     this.playTimer = window.setInterval(() => this.trackTime(), 15000);
     this.on(document, 'visibilitychange', () => { if (document.hidden && this.cfg.saves.autoSaveOnHide) this.autoSave('hidden'); });
-    // pagehide fires on tab close/navigation (beforeunload is unreliable, esp. on mobile)
-    this.on(window, 'pagehide', () => { this.trackTime(); this.autoSave('pagehide'); });
+    // pagehide fires on tab close/navigation (beforeunload is unreliable, esp. on mobile). The worker
+    // can't answer in time while the page is torn down, so write the latest snapshot right away.
+    this.on(window, 'pagehide', () => { this.trackTime(); this.writeLatest(); });
+    this.snapTimer = window.setInterval(() => { if (!this.emu.paused) this.snapshot().catch(() => {}); }, 2000);
   }
 
   private on(t: EventTarget, ev: string, fn: EventListener) { t.addEventListener(ev, fn); this.listeners.push([t, ev, fn]); }
@@ -84,9 +89,22 @@ export class Session {
     if (secs > 0) { this.game.playTime += secs; this.dirty = true; db.updateGame(this.game.id, { playTime: this.game.playTime }); }
   }
 
+  private async snapshot() {
+    const s = await this.emu.saveState();
+    this.latest = { ...s, at: Date.now() };
+    return s;
+  }
+
+  /** Synchronously queue the newest in-memory snapshot as the auto-save (used on pagehide). */
+  private writeLatest() {
+    if (!this.latest || this.netplay) return;
+    const { state, thumb, at } = this.latest;
+    db.putState({ id: `${this.game.id}:${AUTO_SLOT}`, gameId: this.game.id, slot: AUTO_SLOT, state: new Blob([state as BlobPart]), thumb, createdAt: at, playTime: this.game.playTime }).catch(() => {});
+  }
+
   /** Save to a slot (0 = auto). Resolves once the write has committed. */
   async save(slot: number): Promise<void> {
-    const { state, thumb } = await this.emu.saveState();
+    const { state, thumb } = await this.snapshot();
     await db.putState({ id: `${this.game.id}:${slot}`, gameId: this.game.id, slot, state: new Blob([state as BlobPart]), thumb, createdAt: Date.now(), playTime: this.game.playTime });
   }
 
@@ -116,7 +134,7 @@ export class Session {
   async end() {
     if (this.ended) return;
     this.ended = true;
-    clearInterval(this.autoTimer); clearInterval(this.playTimer);
+    clearInterval(this.autoTimer); clearInterval(this.playTimer); clearInterval(this.snapTimer);
     for (const [t, ev, fn] of this.listeners) t.removeEventListener(ev, fn);
     this.trackTime();
     this.emu.pause();

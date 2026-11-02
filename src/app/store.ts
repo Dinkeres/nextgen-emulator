@@ -58,7 +58,13 @@ class Store<T> {
 
 export function useStore<T>(s: Store<T>): T {
   const [, force] = useState(0);
-  useEffect(() => s.sub(() => force(n => n + 1)), [s]);
+  const rendered = s.value;
+  useEffect(() => {
+    const un = s.sub(() => force(n => n + 1));
+    // the store may have changed between render and subscribing (fast IndexedDB reads)
+    if (s.value !== rendered) force(n => n + 1);
+    return un;
+  }, [s]);
   return s.value;
 }
 
