@@ -8,6 +8,7 @@ export interface AVInfo {
 
 export const RUN_VIDEO = 1, RUN_AUDIO = 2, RUN_FF = 4;
 export const MEM_SAVE_RAM = 0, MEM_RTC = 1;
+const STRICT_EPOCH = Date.UTC(2000, 0, 1);
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 type Mod = any;
@@ -67,8 +68,16 @@ export class Core {
     this.av.width = f[a]; this.av.height = f[a + 1]; this.av.aspect = f[a + 4];
   }
 
-  /** Deterministic mode: the core is never told frames are skipped (required for netplay). */
-  setStrict(on: boolean) { this.m._ng_strict(on ? 1 : 0); }
+  /** Deterministic mode (netplay): the core is never told frames are skipped, and its real-time
+   *  clock is frozen — Emscripten's time()/clock_gettime read Date.now(), and cores with RTCs
+   *  (e.g. Gambatte) would otherwise diverge between machines. Each core lives in its own worker,
+   *  so pinning the worker's Date.now is safe. */
+  setStrict(on: boolean) {
+    this.m._ng_strict(on ? 1 : 0);
+    const g = globalThis as { __realNow?: () => number };
+    if (on && !g.__realNow) { g.__realNow = Date.now; Date.now = () => STRICT_EPOCH; }
+    else if (!on && g.__realNow) { Date.now = g.__realNow; delete g.__realNow; }
+  }
 
   run(flags = RUN_VIDEO | RUN_AUDIO) { this.m._ng_run(flags); }
   reset() { this.m._ng_reset(); }
