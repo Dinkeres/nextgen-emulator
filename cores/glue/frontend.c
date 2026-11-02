@@ -143,6 +143,8 @@ static void register_vars(const struct retro_variable *v) {
 // ---------- environment ----------
 static struct retro_system_av_info av;
 static int verbose = 0;
+static int strict = 0;
+API void ng_strict(int on) { strict = on; }
 API void ng_verbose(int v) { verbose = v; }
 
 static void log_cb(enum retro_log_level level, const char *fmt, ...) {
@@ -176,8 +178,10 @@ static bool env_cb(unsigned cmd, void *data) {
     case RETRO_ENVIRONMENT_SET_GEOMETRY: av.geometry = *(const struct retro_game_geometry *)data; return true;
     case RETRO_ENVIRONMENT_GET_LANGUAGE: *(unsigned *)data = RETRO_LANGUAGE_ENGLISH; return true;
     case RETRO_ENVIRONMENT_SET_SUPPORT_NO_GAME: return true;
-    case 47: /* GET_AUDIO_VIDEO_ENABLE */ *(int *)data = (want_video ? 1 : 0) | (want_audio ? 2 : 0); return true;
-    case 64: /* GET_FASTFORWARDING */ *(bool *)data = fast_forwarding; return true;
+    // In strict mode (netplay) the core must not know frames are skipped: some cores change
+    // emulated state when rendering/audio is disabled, which would desync rollback.
+    case 47: /* GET_AUDIO_VIDEO_ENABLE */ if (strict) return false; *(int *)data = (want_video ? 1 : 0) | (want_audio ? 2 : 0); return true;
+    case 64: /* GET_FASTFORWARDING */ if (strict) return false; *(bool *)data = fast_forwarding; return true;
     default: return false;
   }
 }

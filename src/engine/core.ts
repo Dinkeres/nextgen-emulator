@@ -67,6 +67,9 @@ export class Core {
     this.av.width = f[a]; this.av.height = f[a + 1]; this.av.aspect = f[a + 4];
   }
 
+  /** Deterministic mode: the core is never told frames are skipped (required for netplay). */
+  setStrict(on: boolean) { this.m._ng_strict(on ? 1 : 0); }
+
   run(flags = RUN_VIDEO | RUN_AUDIO) { this.m._ng_run(flags); }
   reset() { this.m._ng_reset(); }
 
@@ -94,6 +97,8 @@ export class Core {
     const size = this.stateSize();
     if (!size) throw new Error('Core does not support save states');
     if (size > this.stateCap) { if (this.stateBuf) this.m._free(this.stateBuf); this.stateBuf = this.m._malloc(size); this.stateCap = size; }
+    // some cores (Genesis Plus GX) write less than they declare; zero the tail so hashes are stable
+    this.m.HEAPU8.fill(0, this.stateBuf, this.stateBuf + size);
     if (!this.m._ng_state_save(this.stateBuf, size)) throw new Error('Save state failed');
     return this.m.HEAPU8.slice(this.stateBuf, this.stateBuf + size);
   }

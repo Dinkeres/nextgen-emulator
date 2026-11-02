@@ -17,8 +17,8 @@ export interface SystemInfo {
   buttons: ButtonName[]; // buttons the real controller has (for remap UI + touch layout)
   /** button labels as printed on that console, when they differ from libretro names */
   labels?: Partial<Record<ButtonName, string>>;
-  rollback: boolean;     // state save/load fast enough for rollback netplay (see BENCHMARKS.md)
-  maxPlayers: number;
+  rollback: boolean;     // verified exact + fast state load (tests/rollback.test.ts); else delay-based
+  maxPlayers: number;    // 1 = no netplay (handhelds: link cable isn't emulated)
 }
 
 const DPAD: ButtonName[] = ['UP', 'DOWN', 'LEFT', 'RIGHT'];
@@ -37,17 +37,17 @@ export const SYSTEMS: Record<string, SystemInfo> = {
   gb: {
     id: 'gb', name: 'Game Boy', short: 'GB', core: 'gambatte',
     exts: ['gb'], color: '#8bac0f',
-    buttons: [...DPAD, 'B', 'A', 'SELECT', 'START'], rollback: true, maxPlayers: 1,
+    buttons: [...DPAD, 'B', 'A', 'SELECT', 'START'], rollback: false, maxPlayers: 1,
   },
   gbc: {
     id: 'gbc', name: 'Game Boy Color', short: 'GBC', core: 'gambatte',
     exts: ['gbc'], color: '#00a6a6',
-    buttons: [...DPAD, 'B', 'A', 'SELECT', 'START'], rollback: true, maxPlayers: 1,
+    buttons: [...DPAD, 'B', 'A', 'SELECT', 'START'], rollback: false, maxPlayers: 1,
   },
   gba: {
     id: 'gba', name: 'Game Boy Advance', short: 'GBA', core: 'mgba',
     exts: ['gba'], color: '#4361ee',
-    buttons: [...DPAD, 'B', 'A', 'L', 'R', 'SELECT', 'START'], rollback: true, maxPlayers: 1,
+    buttons: [...DPAD, 'B', 'A', 'L', 'R', 'SELECT', 'START'], rollback: false, maxPlayers: 1,
   },
   genesis: {
     id: 'genesis', name: 'Sega Genesis / Mega Drive', short: 'Genesis', core: 'genesis_plus_gx',
@@ -55,7 +55,8 @@ export const SYSTEMS: Record<string, SystemInfo> = {
     buttons: [...DPAD, 'Y', 'B', 'A', 'X', 'L', 'R', 'START', 'SELECT'],
     // libretro maps Genesis A/B/C to Y/B/A; X/Y/Z to L/X/R
     labels: { Y: 'A', B: 'B', A: 'C', L: 'X', X: 'Y', R: 'Z', SELECT: 'Mode' },
-    rollback: true, maxPlayers: 4,
+    // GPGX state load is not exact (re-simulated frames drift, see DECISIONS.md) -> delay-based
+    rollback: false, maxPlayers: 4,
   },
 };
 
