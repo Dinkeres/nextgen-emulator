@@ -3,6 +3,7 @@ import { ArrowLeft, Check, Copy, Crown, Eye, Gamepad2, Keyboard, Link2, LogIn, P
 import { library, settings, toast, updateSettings, useStore } from '../app/store.ts';
 import { addFiles, pickFiles } from '../app/library.ts';
 import { account } from '../app/account.ts';
+import { AccountForm } from './Settings.tsx';
 import { SYSTEMS } from '../engine/systems.ts';
 import type { Game } from '../app/db.ts';
 import { NetSession, type LobbyPeer } from '../net/session.ts';
@@ -28,9 +29,11 @@ export function Lobby({ nav, game: initialGame, room: joinRoom }: { nav: Nav; ga
   useEffect(() => net?.sub(() => force(n => n + 1)), [net]);
   useEffect(() => () => { if (!started.current) net?.close(); }, [net]);
   // auto-join from an invite link once a name exists
-  useEffect(() => { if (joinRoom && (s.netplay.name || account.value)) connect({ room: joinRoom }); }, []);
+  const autoJoined = useRef(false);
+  useEffect(() => { if (joinRoom && acct && !autoJoined.current) { autoJoined.current = true; connect({ room: joinRoom }); } }, [acct]);
 
   const connect = async (o: { create?: Game; room?: string }) => {
+    if (!account.value) { setErr('Sign in to play online.'); return; }
     setBusy(true); setErr('');
     try {
       const sess = await NetSession.connect(s.netplay.signalUrl, name, {
@@ -65,10 +68,13 @@ export function Lobby({ nav, game: initialGame, room: joinRoom }: { nav: Nav; ga
           <div class="section-title" style={{ marginTop: '0px' }}><h2>Play together online</h2></div>
           <p style={{ color: 'var(--text-2)', marginTop: '-6px' }}>Rollback netplay: every player runs the game locally and only button presses are sent, so it feels like playing on the same couch.</p>
           {acct ? <div class="setting"><div class="lbl"><b>Playing as {acct.username}</b><small>Your account name is shown to everyone in the room.</small></div></div> :
-          <div class="setting"><div class="lbl"><b>Your name</b><small>Shown to everyone in the room. <a href="#" onClick={e => { e.preventDefault(); nav({ name: 'settings', section: 'account' }); }}>Sign in</a> to use your account name.</small></div>
-            <div class="ctl"><input class="input" value={s.netplay.name} maxLength={20} placeholder="Player" onInput={e => updateSettings(x => ({ ...x, netplay: { ...x.netplay, name: (e.target as HTMLInputElement).value } }))} aria-label="Your name" /></div></div>}
+          <div class="card" style={{ padding: '20px', marginTop: '14px' }}>
+            <h3 style={{ marginTop: '0px' }}>Sign in to play online</h3>
+            <p style={{ color: 'var(--text-2)', marginTop: '-4px' }}>Multiplayer needs a free account (the same one as Horizon). It's your name in rooms and keeps your saves in the cloud.</p>
+            <AccountForm />
+          </div>}
           {err && <div class="notice bad" style={{ margin: '14px 0' }}><AlertTriangle />{err}</div>}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '16px', marginTop: '18px' }}>
+          <div style={{ display: acct ? 'grid' : 'none', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '16px', marginTop: '18px' }}>
             <div class="card" style={{ padding: '20px' }}>
               <h3 style={{ marginTop: '0px', display: 'flex', gap: '10px', alignItems: 'center' }}><Crown style={{ width: '20px', color: 'var(--accent)' }} />Host a game</h3>
               {mpGames.length === 0 ? <p style={{ color: 'var(--text-3)' }}>Add a NES, SNES or Genesis game to host a match.</p> : <>

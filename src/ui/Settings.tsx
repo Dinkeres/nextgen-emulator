@@ -339,12 +339,6 @@ function CloudSaves() {
 
 function AccountSection() {
   const a = useStore(account);
-  const [mode, setMode] = useState<'in' | 'up'>('in');
-  const [email, setEmail] = useState('');
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-  const [err, setErr] = useState('');
-  const [busy, setBusy] = useState(false);
   if (a) return (
     <>
       <h3>Account</h3><p class="lead">You're signed in. This is the same account as Horizon: signing in or out here does the same there.</p>
@@ -354,6 +348,22 @@ function AccountSection() {
       <CloudSaves />
     </>
   );
+  return (
+    <>
+      <h3>Account</h3><p class="lead">One account for Kaiser and Horizon. You need one to play online; everything else works signed out.</p>
+      <AccountForm />
+    </>
+  );
+}
+
+/** Sign in / create account (also shown in the multiplayer screen). */
+export function AccountForm() {
+  const [mode, setMode] = useState<'in' | 'up'>('in');
+  const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [err, setErr] = useState('');
+  const [busy, setBusy] = useState(false);
   const submit = async (e: Event) => {
     e.preventDefault();
     setErr('');
@@ -369,7 +379,6 @@ function AccountSection() {
   };
   return (
     <>
-      <h3>Account</h3><p class="lead">One account for Kaiser and Horizon. It's optional: everything works signed out.</p>
       <Chips value={mode} options={[['in', 'Sign in'], ['up', 'Create account']]} onChange={m => { setMode(m); setErr(''); }} />
       <form onSubmit={submit} style={{ display: 'grid', gap: '10px', maxWidth: '360px', marginTop: '14px' }}>
         <input class="input" type="email" autocomplete="email" placeholder="Email" value={email} onInput={e => setEmail((e.target as HTMLInputElement).value)} aria-label="Email" required />

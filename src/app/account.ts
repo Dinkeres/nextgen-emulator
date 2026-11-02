@@ -21,7 +21,11 @@ async function call(path: string, body?: object): Promise<Record<string, string>
     r = await fetch(ACCOUNT_API + path, body
       ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }
       : { headers: { Authorization: 'Bearer ' + token() } });
-  } catch { throw new Error("Couldn't reach the account server. Check your connection."); }
+  } catch (e) {
+    console.warn('[account] request failed', path, e);
+    throw new Error(navigator.onLine === false ? "You're offline. Connect to the internet to sign in."
+      : `Couldn't reach the account server (${new URL(ACCOUNT_API).host}). An ad blocker, VPN or school/work network filter may be blocking it. (${(e as Error).message})`);
+  }
   const j = await r.json().catch(() => ({}));
   if (!r.ok) throw Object.assign(new Error(j.error || `Account server error (${r.status})`), { status: r.status });
   return j;
