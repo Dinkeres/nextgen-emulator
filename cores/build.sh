@@ -59,6 +59,7 @@ core() {
               link gambatte "$(build_make gambatte-libretro Makefile.libretro gambatte_libretro_emscripten.bc)"
               OPT="$keep"; export EMCC_CFLAGS="$OPT";;
     mgba)
+      bash "$HERE/patches/mgba-unplugged.sh" "$SRC/mgba" || return 1
       mkdir -p "$SRC/mgba/build-em$SUFFIX" && cd "$SRC/mgba/build-em$SUFFIX"
       emcmake cmake .. -DCMAKE_BUILD_TYPE=Release -DBUILD_LIBRETRO=ON -DBUILD_QT=OFF -DBUILD_SDL=OFF \
         -DBUILD_SHARED=OFF -DBUILD_STATIC=OFF -DLIBRETRO_STATIC=ON -DUSE_DEBUGGERS=OFF -DUSE_GDB_STUB=OFF \

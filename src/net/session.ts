@@ -8,6 +8,8 @@ import { padKind } from '../engine/input.ts';
 import { SYSTEMS } from '../engine/systems.ts';
 import { toast } from '../app/store.ts';
 import { db } from '../app/db.ts';
+import { romFor } from '../app/library.ts';
+import { isQuetzal, type QzMsg } from './quetzal.ts';
 
 type StartCfg = { players: number[]; delay: number; maxRollback: number; link?: boolean; shared?: boolean };
 
@@ -26,7 +28,7 @@ type Relay =
   | { k: 'sram'; port: number; i: number; n: number; data: string }
   | { k: 'loaded' } | { k: 'go' } | { k: 'rom'; hasRom: boolean | null }
   // fallback transport through the signaling server when no direct WebRTC channel is open
-  | { k: 'net'; m: NetMsg } | { k: 'syncPart'; from: number; frame: number; i: number; n: number; data: string };
+  | { k: 'net'; m: NetMsg } | { k: 'qz'; m: QzMsg } | { k: 'syncPart'; from: number; frame: number; i: number; n: number; data: string };
 
 type Peer = { pc: RTCPeerConnection; input?: RTCDataChannel; ctl?: RTCDataChannel; rtt: number; pingAt: number };
 
@@ -150,6 +152,7 @@ export class NetSession {
     const m = JSON.parse(data);
     if (m.k === 'ping') { ch.send(JSON.stringify({ k: 'pong', ts: m.ts })); return; }
     if (m.k === 'pong') { p.rtt = performance.now() - m.ts; this.reportPing(id, p.rtt); return; }
+    if (m.k === 'qz') { this.sess?.emu.qzReceive(m.m); return; }
     if (m.k === 'syncHdr') { this.syncRx.set(id, { hdr: m, chunks: [], got: 0 }); return; }
     if (m.t) this.sess?.emu.netReceive(m as NetMsg);
   }
@@ -207,6 +210,7 @@ export class NetSession {
   // ---------------- lobby (host authoritative) ----------------
   private onRelay(from: string, d: Relay) {
     if (d.k === 'net') { this.sess?.emu.netReceive(d.m); return; }
+    if (d.k === 'qz') { this.sess?.emu.qzReceive(d.m); return; }
     if (d.k === 'sram') {
       const parts = this.sramParts.get(d.port) ?? [];
       parts[d.i] = d.data;
@@ -317,9 +321,13 @@ export class NetSession {
       if (this.isHost) { sess.emu.netResync(); toast(`Desync at frame ${frame} — resyncing everyone`, 'rotate', 'warn'); }
       console.warn('[netplay] desync detected at frame', frame);
     });
+    const mine = this.mePeer?.port ?? null;
+    if (cfg.link && cfg.players.length === 2 && mine !== null && isQuetzal(new Uint8Array(await romFor(sess.game)))) {
+      await this.startQuetzal(sess, mine === 0);
+      return;
+    }
     if (cfg.link) {
       // GBA link cable: each machine runs every player's GBA, each with that player's own save
-      const mine = this.mePeer?.port ?? null;
       const srams = await this.exchangeSrams(mine, cfg.players.length);
       await sess.start({ netplay: true, link: { players: cfg.players.length, srams, view: mine ?? 0 } });
     } else await sess.start({ netplay: true });
@@ -330,6 +338,22 @@ export class NetSession {
     sess.emu.netStart({ localPort: this.mePeer?.port ?? -1, players: cfg.players, inputDelay: cfg.delay, maxRollback: cfg.maxRollback, shared: cfg.shared });
     await sess.emu.resume();
     toast(cfg.maxRollback ? `Online · ${cfg.delay}f delay · rollback on` : `Online · ${cfg.delay}f delay`, 'users', 'success');
+  }
+
+  /** Pokémon Quetzal: no lockstep at all. Each player plays their own game with their own save
+   *  (auto-save, save states and speed-up all work); Mplayer's link messages go over the reliable
+   *  channel. Much lighter than running both GBAs on every machine. */
+  private async startQuetzal(sess: Session, host: boolean) {
+    const other = () => this.state.peers.find(p => p.id !== this.me && p.port !== null);
+    await sess.start();
+    sess.emu.qzStart(host, m => {
+      const o = other();
+      if (!o) return;
+      const ch = this.peers.get(o.id)?.ctl;
+      if (ch?.readyState === 'open') ch.send(JSON.stringify({ k: 'qz', m }));
+      else this.relay({ k: 'qz', m }, o.id);
+    }, text => toast('Co-op: ' + text, 'users', 'info', 3000));
+    toast('Quetzal co-op ready: both open START → MPLAYER → 2P, then the host presses A', 'users', 'success', 7000);
   }
 
   /** Send our battery save to everyone and collect theirs (empty string = no save). */

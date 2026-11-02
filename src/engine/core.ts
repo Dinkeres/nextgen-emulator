@@ -140,6 +140,15 @@ export class Core {
     codes.forEach((c, i) => { const p = this.m.stringToNewUTF8(c); this.m._ng_cheat_set(i, 1, p); this.m._free(p); });
   }
 
+  /** Emulated-bus access (little-endian) through the core's memory map; unmapped reads give 0.
+   *  Only cores that publish a memory map (and were built with ng_addr) support this. */
+  private ptr(addr: number): number { return this.m._ng_addr ? this.m._ng_addr(addr >>> 0) : 0; }
+  read8(a: number) { const p = this.ptr(a); return p ? this.m.HEAPU8[p] : 0; }
+  read16(a: number) { return this.read8(a) | this.read8(a + 1) << 8; }
+  read32(a: number) { return (this.read16(a) | this.read16(a + 2) << 16) >>> 0; }
+  write8(a: number, v: number) { const p = this.ptr(a); if (p) this.m.HEAPU8[p] = v; }
+  write16(a: number, v: number) { this.write8(a, v & 255); this.write8(a + 1, v >> 8 & 255); }
+
   get name(): string { return this.m.UTF8ToString(this.m._ng_core_name()); }
   get version(): string { return this.m.UTF8ToString(this.m._ng_core_version()); }
   get memoryBytes(): number { return this.m.HEAPU8.length; }

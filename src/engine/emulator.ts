@@ -6,6 +6,7 @@ import type { AVInfo } from './core.ts';
 import type { DisplayOptions } from './renderer.ts';
 import { Renderer } from './renderer.ts';
 import type { NetMsg } from '../net/rollback.ts';
+import type { QzMsg } from '../net/quetzal.ts';
 
 export interface StartOptions {
   coreUrl: string;
@@ -32,6 +33,8 @@ export interface Events {
   notice?: (code: string) => void;
   net?: (m: NetMsg) => void;
   desync?: (frame: number) => void;
+  qz?: (m: QzMsg) => void;
+  qzStatus?: (text: string) => void;
 }
 
 const AUDIO_CAP = 16384; // frames (~340ms at 48k)
@@ -131,6 +134,8 @@ export class Emulator {
       case 'net': this.ev.net?.(m.msg); break;
       case 'netEvent': this.ev.desync?.(m.frame); break;
       case 'notice': this.ev.notice?.(m.code); break;
+      case 'qz': this.ev.qz?.(m.msg); break;
+      case 'qzStatus': this.ev.qzStatus?.(m.text); break;
       case 'error':
         if (this.errorWaiters.length) { this.errorWaiters.forEach(f => f(new Error(m.message))); this.errorWaiters = []; }
         else this.ev.error?.(m.message);
@@ -227,6 +232,11 @@ export class Emulator {
   netReceive(msg: NetMsg) { this.post({ type: 'net', msg }); }
   netStop() { this.post({ type: 'netStop' }); }
   netResync() { this.post({ type: 'netResync' }); }
+  /** Pokémon Quetzal co-op: each player runs their own game; only Mplayer's link messages travel. */
+  qzStart(host: boolean, send: (m: QzMsg) => void, status: (text: string) => void) {
+    this.ev.qz = send; this.ev.qzStatus = status; this.post({ type: 'qzStart', host });
+  }
+  qzReceive(msg: QzMsg) { this.post({ type: 'qz', msg }); }
 
   destroy() {
     cancelAnimationFrame(this.raf);

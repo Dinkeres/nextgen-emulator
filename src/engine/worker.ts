@@ -7,6 +7,7 @@ import { Renderer, type DisplayOptions } from './renderer.ts';
 import { RewindBuffer } from './rewind.ts';
 import { Rollback, packInput, type NetMsg } from '../net/rollback.ts';
 import type { ToWorker, FromWorker, FFAudio } from './protocol.ts';
+import { QuetzalLink } from '../net/quetzal.ts';
 
 let core: Core | LinkCore;
 const carry = [0, 0, 0, 0];
@@ -15,6 +16,7 @@ let revBuf = new Int16Array(0);
 let renderer: Renderer | null = null;
 let rewind: RewindBuffer | null = null;
 let rollback: Rollback | null = null;
+let qz: QuetzalLink | null = null;
 
 const S = {
   speed: 1, paused: true, rewinding: false, ffAudio: 'stretch' as FFAudio, volume: 1,
@@ -71,7 +73,13 @@ self.onmessage = async (e: MessageEvent<ToWorker>) => {
       case 'screenshot': post({ type: 'screenshot', id: m.id, png: await thumbnail('image/png', 0) }); break;
       case 'net': rollback?.receive(m.msg); break;
       case 'netStart': startNet(m); break;
-      case 'netStop': rollback = null; core.setStrict(false); break;
+      case 'netStop': rollback = null; core.setStrict(false); qz?.stop(); qz = null; break;
+      case 'qzStart':
+        if (!(core instanceof Core)) break;
+        qz = new QuetzalLink(core, m.host, msg => post({ type: 'qz', msg }));
+        qz.onStatus = text => post({ type: 'qzStatus', text });
+        break;
+      case 'qz': qz?.receive(m.msg); break;
       case 'bench': {
         // max throughput the way uncapped fast-forward runs: frames are emulated as fast as
         // possible and only those that reach the screen (~60/s) are rendered
@@ -219,6 +227,7 @@ function tick(now: number, dt: number, inputs: number[], vsync: boolean) {
     if (wantAudio) flags |= RUN_AUDIO;
     if (ff) flags |= RUN_FF;
     core.run(flags);
+    qz?.frame();
     if (i === 0) for (let p = 0; p < inputs.length; p++) core.setInput(p, inputs[p]);
     S.frame++; S.emuFrames++;
     if (wantAudio) pushAudio(core.audio(), ff && S.ffAudio === 'pitch' ? S.speed : S.speed < 1 ? S.speed : 1);

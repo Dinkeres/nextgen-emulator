@@ -104,3 +104,10 @@ Every judgment call made while building this autonomously, with the reason. Newe
     directly, game traffic falls back to the server relay automatically.
 37. **GBA multiplayer = emulated link cable**, all players' GBAs on every machine, delay-based (see NEEDS_REVIEW 14).
 38. **DS multiplayer = shared console**, delay-based (6 MB states make rollback too costly).
+39. **Pokémon Quetzal co-op = message bridge, not lockstep** (src/net/quetzal.ts). Quetzal's Mplayer only swaps
+    small link messages, so each player runs just their own game (own save, auto-save, full speed) and the
+    bridge moves the game's link queues over the reliable data channel / server relay. Detected by exact ROM
+    bytes (Alpha 9) when a 2-player GBA room starts; other GBA games still use the link cable. Addresses and
+    approach from Quetzal Online by Lost (github.com/OneLostGamer/Quetzal-Online); our code is a fresh
+    implementation. Needed mGBA's 0.10 "unplugged cable" behaviour (cores/patches/mgba-unplugged.sh): 0.11-dev
+    completes multiplayer transfers with no cable, which wipes the game's player count every frame.

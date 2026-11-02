@@ -1,6 +1,7 @@
 // Messages between the main thread (Emulator) and the emulation worker.
 import type { AVInfo } from './core.ts';
 import type { DisplayOptions } from './renderer.ts';
+import type { QzMsg } from '../net/quetzal.ts';
 import type { NetMsg, NetStats } from '../net/rollback.ts';
 
 export type FFAudio = 'mute' | 'pitch' | 'stretch';
@@ -38,6 +39,8 @@ export type ToWorker =
   | { type: 'netStart'; localPort: number; players: number[]; inputDelay: number; maxRollback: number; state?: ArrayBuffer; shared?: boolean }
   | { type: 'netStop' }
   | { type: 'netResync' }
+  // Pokémon Quetzal co-op bridge (src/net/quetzal.ts)
+  | { type: 'qzStart'; host: boolean } | { type: 'qz'; msg: QzMsg }
   | { type: 'bench'; id: number; ms: number }
   | { type: 'timings'; id: number };
 
@@ -56,6 +59,7 @@ export type FromWorker =
   | { type: 'frame'; data: Uint8Array; width: number; height: number; aspect: number }
   | { type: 'net'; msg: NetMsg }
   | { type: 'netEvent'; event: 'desync'; frame: number }
+  | { type: 'qz'; msg: QzMsg } | { type: 'qzStatus'; text: string }
   | { type: 'error'; message: string }
   | { type: 'notice'; code: 'rewind-heavy' }
   | { type: 'bench'; id: number; frames: number; ms: number }

@@ -162,6 +162,22 @@ static void log_cb(enum retro_log_level level, const char *fmt, ...) {
   va_list ap; va_start(ap, fmt); vfprintf(stderr, fmt, ap); va_end(ap);
 }
 
+// Memory map published by the core (address space of the emulated machine), for ng_addr().
+static struct retro_memory_descriptor maps[16];
+static unsigned nmaps = 0;
+/** Host pointer to one byte of emulated address space, or NULL if unmapped. */
+EMSCRIPTEN_KEEPALIVE uint8_t *ng_addr(uint32_t addr) {
+  for (unsigned i = 0; i < nmaps; i++) {
+    const struct retro_memory_descriptor *d = &maps[i];
+    if (!d->ptr || !d->len) continue;
+    size_t off;
+    if (d->select) { if ((addr & d->select) != (d->start & d->select)) continue; off = (addr - d->start) % d->len; }
+    else { if (addr < d->start || addr - d->start >= d->len) continue; off = addr - d->start; }
+    return (uint8_t *)d->ptr + d->offset + off;
+  }
+  return NULL;
+}
+
 static bool env_cb(unsigned cmd, void *data) {
   if (verbose > 1) fprintf(stderr, "env %u\n", cmd & 0xffff);
   switch (cmd & ~RETRO_ENVIRONMENT_EXPERIMENTAL) {
@@ -188,6 +204,12 @@ static bool env_cb(unsigned cmd, void *data) {
     case RETRO_ENVIRONMENT_SET_GEOMETRY: av.geometry = *(const struct retro_game_geometry *)data; return true;
     case RETRO_ENVIRONMENT_GET_LANGUAGE: *(unsigned *)data = RETRO_LANGUAGE_ENGLISH; return true;
     case RETRO_ENVIRONMENT_SET_SUPPORT_NO_GAME: return true;
+    case 36: /* SET_MEMORY_MAPS (defined with the EXPERIMENTAL bit, masked off above) */ {
+      const struct retro_memory_map *mm = (const struct retro_memory_map *)data;
+      nmaps = mm->num_descriptors < 16 ? mm->num_descriptors : 16;
+      memcpy(maps, mm->descriptors, nmaps * sizeof(*maps));
+      return true;
+    }
     // In strict mode (netplay) the core must not know frames are skipped: some cores change
     // emulated state when rendering/audio is disabled, which would desync rollback.
     case 47: /* GET_AUDIO_VIDEO_ENABLE */ if (strict) return false; *(int *)data = (want_video ? 1 : 0) | (want_audio ? 2 : 0); return true;

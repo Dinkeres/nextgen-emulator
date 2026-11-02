@@ -59,3 +59,7 @@ game content are included or downloaded.
 | sgdk-partic.gen | Particles (SGDK sample) | Stephane Dallongeville | MIT | https://github.com/Stephane-D/SGDK |
 
 The GPL-licensed homebrew ROMs are distributed with their source available at the linked repositories.
+
+## Credits
+
+- Pokémon Quetzal co-op bridge (`src/net/quetzal.ts`): RAM/ROM addresses and approach from [Quetzal Online](https://github.com/OneLostGamer/Quetzal-Online) by Lost; Mplayer itself is TenmaRH's work in Pokémon Quetzal. No code copied (that repo has no license); no ROM is distributed.

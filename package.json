@@ -8,7 +8,7 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
-    "test": "node --test --experimental-strip-types tests/unit.test.ts tests/determinism.test.ts tests/gbalink.test.ts tests/dsnet.test.ts",
+    "test": "node --test --experimental-strip-types tests/unit.test.ts tests/determinism.test.ts tests/gbalink.test.ts tests/dsnet.test.ts tests/quetzal.test.ts",
     "bench": "node --experimental-strip-types bench/core-bench.ts",
     "signal": "node server/signal.mjs",
     "test:netplay": "node --test --experimental-strip-types tests/rollback.test.ts",
