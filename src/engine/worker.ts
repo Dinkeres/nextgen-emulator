@@ -189,7 +189,7 @@ function finishTick(t0: number, now: number) {
     post({
       type: 'stats', emuFps: S.emuFrames / secs, fps: S.shownFrames / secs, workMs: S.workMs,
       audioFill: fill(), underruns: S.ctl ? Atomics.load(S.ctl, 2) : S.portUnder,
-      rewindSeconds: rewind ? rewind.length * S.rewindGran / core.av.fps : 0, rewindMB: rewind ? rewind.usedBytes / 1048576 : 0,
+      rewindSeconds: rewind ? rewind.length * S.rewindGran / core.av.fps : 0, rewindMB: rewind ? rewind.usedBytes / 1048576 : 0, wasmMB: core.memoryBytes / 1048576,
       net: rollback?.stats(),
     });
     S.emuFrames = 0; S.shownFrames = 0; S.statT = now;

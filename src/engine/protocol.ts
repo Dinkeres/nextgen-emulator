@@ -36,7 +36,7 @@ export type ToWorker =
 
 export interface Stats {
   emuFps: number; fps: number; workMs: number; audioFill: number; underruns: number;
-  rewindSeconds: number; rewindMB: number; net?: NetStats;
+  rewindSeconds: number; rewindMB: number; wasmMB: number; net?: NetStats;
 }
 
 export type FromWorker =

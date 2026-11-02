@@ -68,7 +68,28 @@ each, random inputs, every 60th frame's state hash compared between peers **and*
 
 All runs matched the offline reference bit-for-bit at every checkpoint.
 
-## 4. Biggest bottlenecks found in EmulatorJS (Step 0 audit)
+## 4. Real-browser netplay and long-session stability
+
+`node bench/netplay-e2e.mjs <game> <seconds>` — two Chromium pages, local signaling server, real WebRTC data channels,
+lobby → ready → start → random inputs on both sides.
+
+| Game | Result after the run |
+|---|---|
+| Thwaite (NES, rollback) | both 60 fps, frames 1406 / 1406, 250 rollbacks (max 2 f), **0 desyncs** |
+| Breakout (SNES, rollback) | both 60 fps, frames 1100 / 1099, 186 rollbacks (max 2 f), **0 desyncs** |
+| Cube 3D (Genesis, delay-based) | both 60 fps, frames 1097 / 1097, 0 stalls, **0 desyncs** |
+
+`node bench/soak.mjs 4 Thwaite` (and 5 min on Breakout) — repeated cycles of play, 3× fast-forward, rewind, slow motion,
+quick save and auto-save:
+
+| | start | after 4 min |
+|---|---|---|
+| Audio underruns | 0 | **0** |
+| Main-thread JS heap | 9.5 MB | **9.5 MB** |
+| Worker wasm heap | 64 MB | **64 MB** |
+| Rewind buffer | 0 MB | 1.1 MB (bounded by its budget) |
+
+## 5. Biggest bottlenecks found in EmulatorJS (Step 0 audit)
 
 1. **Everything on the main thread.** The core, GL rendering, audio and UI share one thread; any UI work or GC pause
    steals emulation time. → Kaiser runs the core in a Web Worker and renders there via OffscreenCanvas.
