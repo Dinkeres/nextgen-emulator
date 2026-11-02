@@ -15,6 +15,7 @@ export const HOMEBREW: Homebrew[] = [
   { file: 'sgdk-cube3d.gen', title: 'Cube 3D', system: 'genesis', author: 'Stephane Dallongeville (SGDK sample)', license: 'MIT', url: 'https://github.com/Stephane-D/SGDK', blurb: 'Real-time 3D rendering demo for the Mega Drive.' },
   { file: 'sgdk-partic.gen', title: 'Particles', system: 'genesis', author: 'Stephane Dallongeville (SGDK sample)', license: 'MIT', url: 'https://github.com/Stephane-D/SGDK', blurb: 'Hundreds of bitmap particles bouncing around.' },
   { file: 'kaiser-ds-demo.nds', title: 'Kaiser DS Demo', system: 'nds', author: 'Kaiser project (original)', license: 'GPL-3.0', url: 'https://github.com/Dinkeres/nextgen-emulator/tree/main/homebrew-src/ds-demo', blurb: 'Spin a 3D cube on the top screen and paint with the stylus on the touch screen.' },
+  { file: 'kaiser-link-squares.gba', title: 'Link Squares', system: 'gba', author: 'Kaiser project (original)', license: 'GPL-3.0', url: 'https://github.com/Dinkeres/nextgen-emulator/tree/main/homebrew-src/gba-link', blurb: 'A 2–4 player link-cable test: everyone moves a square and sees each other live. Try it in Multiplayer!' },
   { file: '240pee_mb.gba', title: '240p Test Suite', system: 'gba', author: 'Damian Yerrick & Artemio Urbina', license: 'GPL-2.0', url: 'https://github.com/pinobatch/240p-test-mini', blurb: 'Display and input calibration patterns for the GBA.' },
 ];
 

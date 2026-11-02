@@ -7,6 +7,9 @@ import type { Input } from '../engine/input.ts';
 import { padKind } from '../engine/input.ts';
 import { SYSTEMS } from '../engine/systems.ts';
 import { toast } from '../app/store.ts';
+import { db } from '../app/db.ts';
+
+type StartCfg = { players: number[]; delay: number; maxRollback: number; link?: boolean };
 
 export const ICE_SERVERS: RTCIceServer[] = [{ urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] }];
 
@@ -19,7 +22,8 @@ type Relay =
   | { k: 'hello'; name: string; hasRom: boolean | null; pad: string }
   | { k: 'ready'; ready: boolean } | { k: 'spectate'; on: boolean } | { k: 'chat'; text: string }
   | { k: 'lobby'; state: LobbyState } | { k: 'chatline'; line: ChatLine }
-  | { k: 'start'; players: number[]; delay: number; maxRollback: number }
+  | { k: 'start'; players: number[]; delay: number; maxRollback: number; link?: boolean }
+  | { k: 'sram'; port: number; i: number; n: number; data: string }
   | { k: 'loaded' } | { k: 'go' } | { k: 'rom'; hasRom: boolean | null }
   // fallback transport through the signaling server when no direct WebRTC channel is open
   | { k: 'net'; m: NetMsg } | { k: 'syncPart'; from: number; frame: number; i: number; n: number; data: string };
@@ -34,8 +38,11 @@ export class NetSession {
   error = '';
   private peers = new Map<string, Peer>();
   private ls = new Set<() => void>();
-  onStart?: (cfg: { players: number[]; delay: number; maxRollback: number }) => void;
-  private startCfg: { players: number[]; delay: number; maxRollback: number } | null = null;
+  onStart?: (cfg: StartCfg) => void;
+  private startCfg: StartCfg | null = null;
+  /** link play: everyone's battery save, gathered before boot (port -> chunks) */
+  private sramParts = new Map<number, string[]>();
+  private sramWaiter: (() => void) | null = null;
   private loaded = new Set<string>();
   private goResolve: (() => void) | null = null;
   private sess: Session | null = null;
@@ -200,6 +207,14 @@ export class NetSession {
   // ---------------- lobby (host authoritative) ----------------
   private onRelay(from: string, d: Relay) {
     if (d.k === 'net') { this.sess?.emu.netReceive(d.m); return; }
+    if (d.k === 'sram') {
+      const parts = this.sramParts.get(d.port) ?? [];
+      parts[d.i] = d.data;
+      this.sramParts.set(d.port, parts);
+      this.sramTotals.set(d.port, d.n);
+      this.sramWaiter?.();
+      return;
+    }
     if (d.k === 'syncPart') {
       this.syncParts[d.i] = d.data;
       if (this.syncParts.filter(Boolean).length === d.n) {
@@ -277,17 +292,19 @@ export class NetSession {
   start(opts: { inputDelay: number | 'auto'; maxRollback: number }) {
     if (!this.isHost || this.canStart()) return;
     const sys = SYSTEMS[this.state.game!.system];
-    const players = this.state.peers.filter(p => p.port !== null).map(p => p.port!).sort();
+    // renumber player slots 0..n-1 so a link cable / port list never has gaps
+    this.state.peers.filter(p => p.port !== null).sort((a, b) => a.port! - b.port!).forEach((p, i) => { p.port = i; });
+    const players = this.state.peers.filter(p => p.port !== null).map(p => p.port!).sort((a, b) => a - b);
     const worst = Math.max(0, ...this.state.peers.filter(p => p.port !== null && p.id !== this.me).map(p => p.ping));
     const oneWayFrames = worst / 2 / (1000 / 60);
     const maxRollback = sys.rollback ? opts.maxRollback : 0;
     const delay = opts.inputDelay !== 'auto' ? opts.inputDelay
       : maxRollback ? Math.min(4, Math.max(0, Math.round(oneWayFrames) - 1)) : Math.min(8, Math.max(2, Math.ceil(oneWayFrames) + 1));
-    const cfg = { players, delay, maxRollback };
+    const cfg: StartCfg = { players, delay, maxRollback, link: sys.id === 'gba' };
     this.startCfg = cfg;
     this.state.started = true;
+    this.pushLobby(); // (renumbered ports) must reach everyone before 'start'
     this.relay({ k: 'start', ...cfg });
-    this.pushLobby();
     this.onStart?.(cfg);
   }
 
@@ -300,7 +317,12 @@ export class NetSession {
       if (this.isHost) { sess.emu.netResync(); toast(`Desync at frame ${frame} — resyncing everyone`, 'rotate', 'warn'); }
       console.warn('[netplay] desync detected at frame', frame);
     });
-    await sess.start({ netplay: true });
+    if (cfg.link) {
+      // GBA link cable: each machine runs every player's GBA, each with that player's own save
+      const mine = this.mePeer?.port ?? null;
+      const srams = await this.exchangeSrams(mine, cfg.players.length);
+      await sess.start({ netplay: true, link: { players: cfg.players.length, srams, view: mine ?? 0 } });
+    } else await sess.start({ netplay: true });
     sess.emu.pause();
     const go = new Promise<void>(res => { this.goResolve = res; });
     if (this.isHost) { this.loaded.add(this.me); this.checkGo(); } else this.relay({ k: 'loaded' }, this.state.hostId);
@@ -308,6 +330,36 @@ export class NetSession {
     sess.emu.netStart({ localPort: this.mePeer?.port ?? -1, players: cfg.players, inputDelay: cfg.delay, maxRollback: cfg.maxRollback });
     await sess.emu.resume();
     toast(cfg.maxRollback ? `Online · ${cfg.delay}f delay · rollback on` : `Online · ${cfg.delay}f delay`, 'users', 'success');
+  }
+
+  /** Send our battery save to everyone and collect theirs (empty string = no save). */
+  private async exchangeSrams(mine: number | null, players: number): Promise<(ArrayBuffer | null)[]> {
+    if (mine !== null) {
+      const s = await db.sram(this.state.game!.id);
+      let bin = '';
+      if (s) for (let i = 0; i < s.length; i += 0x8000) bin += String.fromCharCode(...s.subarray(i, i + 0x8000));
+      const b64 = btoa(bin), CH = 48000, n = Math.max(1, Math.ceil(b64.length / CH));
+      for (let i = 0; i < n; i++) this.relay({ k: 'sram', port: mine, i, n, data: b64.slice(i * CH, (i + 1) * CH) });
+      this.sramParts.set(mine, [b64]);
+      this.sramTotals.set(mine, 1);
+    }
+    const ready = () => Array.from({ length: players }, (_, p) => this.sramComplete(p)).every(Boolean);
+    if (!ready()) await Promise.race([
+      new Promise<void>(res => { this.sramWaiter = () => { if (ready()) res(); }; }),
+      new Promise((_, rej) => setTimeout(() => rej(new Error("Couldn't receive every player's save data.")), 30000)),
+    ]);
+    this.sramWaiter = null;
+    return Array.from({ length: players }, (_, p) => {
+      const b64 = this.sramParts.get(p)!.join('');
+      return b64 ? Uint8Array.from(atob(b64), c => c.charCodeAt(0)).buffer as ArrayBuffer : null;
+    });
+  }
+  private sramTotals = new Map<number, number>();
+  private sramComplete(port: number) {
+    const parts = this.sramParts.get(port);
+    if (!parts) return false;
+    const n = this.sramTotals.get(port);
+    return n === undefined ? parts.length === 1 : parts.filter(x => x !== undefined).length === n;
   }
 
   private checkGo() {

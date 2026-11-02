@@ -72,7 +72,7 @@ export function Lobby({ nav, game: initialGame, room: joinRoom }: { nav: Nav; ga
                 <select class="input" style={{ width: '100%', borderRadius: '12px' }} value={pick} onChange={e => setPick((e.target as HTMLSelectElement).value)} aria-label="Game to host">
                   {mpGames.map(x => <option key={x.id} value={x.id}>{x.title} — {SYSTEMS[x.system].short}</option>)}
                 </select>
-                {g && <p style={{ color: 'var(--text-3)', fontSize: '13px' }}>{SYSTEMS[g.system].rollback ? 'Rollback netcode · ' : 'Delay-based netcode · '}up to {SYSTEMS[g.system].maxPlayers} players + spectators</p>}
+                {g && <p style={{ color: 'var(--text-3)', fontSize: '13px' }}>{g.system === 'gba' ? 'Emulated link cable (trades, link battles, multiplayer games) · ' : SYSTEMS[g.system].rollback ? 'Rollback netcode · ' : 'Delay-based netcode · '}up to {SYSTEMS[g.system].maxPlayers} players + spectators</p>}
                 <button class="btn primary" disabled={busy || !g} onClick={() => connect({ create: g })} data-autofocus><Users />Create room</button>
               </>}
             </div>
@@ -128,7 +128,7 @@ export function Lobby({ nav, game: initialGame, room: joinRoom }: { nav: Nav; ga
                 <div style={{ flex: 1, minWidth: '0px' }}>
                   <SysBadge system={st.game.system} />
                   <h3 style={{ margin: '6px 0 2px' }}>{st.game.title}</h3>
-                  <small style={{ color: 'var(--text-3)' }}>{sys?.rollback ? 'Rollback netcode' : 'Delay-based netcode'} · ROMs are matched by checksum and never sent</small>
+                  <small style={{ color: 'var(--text-3)' }}>{st.game.system === 'gba' ? 'Link cable · each player keeps their own save' : sys?.rollback ? 'Rollback netcode' : 'Delay-based netcode'} · ROMs are matched by checksum and never sent</small>
                 </div>
               </div>
             )}

@@ -2,12 +2,13 @@
 // Emulation worker: owns the core, timing, audio production, rewind and rendering.
 // The main thread sends one `tick` per requestAnimationFrame with the current input.
 import { Core, RUN_AUDIO, RUN_FF, RUN_VIDEO } from './core.ts';
+import { LinkCore } from './linkcore.ts';
 import { Renderer, type DisplayOptions } from './renderer.ts';
 import { RewindBuffer } from './rewind.ts';
 import { Rollback, type NetMsg } from '../net/rollback.ts';
 import type { ToWorker, FromWorker, FFAudio } from './protocol.ts';
 
-let core: Core;
+let core: Core | LinkCore;
 const carry = [0, 0, 0, 0];
 const silence = new Float32Array(4096 * 2);
 let revBuf = new Int16Array(0);
@@ -94,11 +95,17 @@ self.onmessage = async (e: MessageEvent<ToWorker>) => {
 
 async function init(m: Extract<ToWorker, { type: 'init' }>) {
   const factory = (await import(/* @vite-ignore */ m.coreUrl)).default;
-  core = await Core.create(factory);
-  for (const [k, v] of Object.entries(m.options ?? {})) core.setOption(k, v);
-  for (const [k, v] of Object.entries(m.systemFiles ?? {})) core.writeSystemFile(k, new Uint8Array(v));
-  if (!core.load(new Uint8Array(m.rom), m.fileName)) throw new Error('This game could not be loaded by the ' + m.coreUrl.split('/').pop()?.replace('.mjs', '') + ' core.');
-  if (m.sram) core.setSram(new Uint8Array(m.sram));
+  if (m.link) {
+    core = await LinkCore.create(factory, m.link.roms.map(r => new Uint8Array(r)), m.link.srams.map(s => s ? new Uint8Array(s) : null), m.link.view);
+  } else {
+    const c = await Core.create(factory);
+    core = c;
+    for (const [k, v] of Object.entries(m.options ?? {})) c.setOption(k, v);
+    for (const [k, v] of Object.entries(m.systemFiles ?? {})) c.writeSystemFile(k, new Uint8Array(v));
+    if (!c.load(new Uint8Array(m.rom), m.fileName)) throw new Error('This game could not be loaded by the ' + m.coreUrl.split('/').pop()?.replace('.mjs', '') + ' core.');
+    if (m.sram) c.setSram(new Uint8Array(m.sram));
+  }
+  if (m.strict) core.setStrict(true);
   S.sramCopy = core.sram()?.slice() ?? null;
   if (m.canvas) {
     renderer = new Renderer(m.canvas);

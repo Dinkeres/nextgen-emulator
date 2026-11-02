@@ -55,6 +55,7 @@ while (Date.now() - t0 < SECONDS * 1000) {
   await sleep(150);
 }
 const stats = async p => p.evaluate(() => { const s = window.__kaiser?.stats; return s && { fps: Math.round(s.fps), emuFps: Math.round(s.emuFps), net: s.net && { frame: s.net.frame, rollbacks: s.net.rollbacks, maxRb: s.net.maxRollbackSeen, stalls: s.net.stalls, desyncs: s.net.desyncs, resyncs: s.net.resyncs, peers: s.net.peers } }; });
+if (process.env.SHOT) { await host.screenshot({ path: 'docs/screenshots/link-p1.png' }); await guest.screenshot({ path: 'docs/screenshots/link-p2.png' }); }
 console.log('host', JSON.stringify(await stats(host)));
 console.log('guest', JSON.stringify(await stats(guest)));
 const chat = await host.$$eval('.chat .log div', d => d.map(x => x.textContent)).catch(() => []);

@@ -15,6 +15,10 @@ export type ToWorker =
       options?: Record<string, string>; sram?: ArrayBuffer; state?: ArrayBuffer;
       /** user-supplied BIOS/firmware written to /system before the game loads */
       systemFiles?: Record<string, ArrayBuffer>;
+      /** GBA link play: every player's ROM and battery save; `view` = whose screen/sound this machine shows */
+      link?: { roms: ArrayBuffer[]; srams: (ArrayBuffer | null)[]; view: number };
+      /** deterministic from the first frame (netplay) */
+      strict?: boolean;
       rewind?: { enabled: boolean; seconds: number; budgetMB: number; heavy?: boolean };
     }
   /** stylus: [x, y, down] normalized to the canvas (0..1), for touch-screen systems */

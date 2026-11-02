@@ -47,7 +47,9 @@ export const SYSTEMS: Record<string, SystemInfo> = {
   gba: {
     id: 'gba', name: 'Game Boy Advance', short: 'GBA', core: 'mgba',
     exts: ['gba'], color: '#4361ee',
-    buttons: [...DPAD, 'B', 'A', 'L', 'R', 'SELECT', 'START'], rollback: false, maxPlayers: 1,
+    buttons: [...DPAD, 'B', 'A', 'L', 'R', 'SELECT', 'START'],
+    // online play = emulated link cable between up to 4 GBAs (delay-based; see DECISIONS.md)
+    rollback: false, maxPlayers: 4,
   },
   nds: {
     id: 'nds', name: 'Nintendo DS', short: 'DS', core: 'melonds',

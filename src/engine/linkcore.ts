@@ -10,6 +10,7 @@ export class LinkCore {
   private m: Mod;
   av!: AVInfo;
   readonly players: number;
+  private view = 0;
   private stateBuf = 0;
   private stateCap = 0;
 
@@ -31,11 +32,12 @@ export class LinkCore {
     srams.forEach((s, i) => { if (s?.length) c.setSram(s, i); });
     m._lk_link();
     m._lk_set_view(view);
+    c.view = view;
     c.av = { width: 240, height: 160, maxWidth: 240, maxHeight: 160, aspect: 3 / 2, fps: 16777216 / 280896, sampleRate: m._lk_sample_rate() };
     return c;
   }
 
-  setView(i: number) { this.m._lk_set_view(i); }
+  setView(i: number) { this.m._lk_set_view(i); this.view = i; }
   run(flags = 3) { this.m._lk_run(flags); }
   reset() { this.m._lk_reset(); }
   setInput(port: number, mask: number) { this.m._lk_set_input(port, mask); }
@@ -71,13 +73,13 @@ export class LinkCore {
   }
 
   /** Battery save of one player's GBA (copy), or null. */
-  sram(player = 0): Uint8Array | null {
+  sram(player = this.view): Uint8Array | null {
     const n = this.m._lk_sram_clone(player);
     if (!n) return null;
     const p = this.m._lk_sram_ptr();
     return this.m.HEAPU8.slice(p, p + n);
   }
-  setSram(data: Uint8Array, player = 0) {
+  setSram(data: Uint8Array, player = this.view) {
     const p = this.m._malloc(data.length);
     this.m.HEAPU8.set(data, p);
     this.m._lk_sram_restore(player, p, data.length);

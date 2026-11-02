@@ -15,6 +15,8 @@ export interface StartOptions {
   state?: ArrayBuffer;
   options?: Record<string, string>;
   systemFiles?: Record<string, ArrayBuffer>;
+  link?: { roms: ArrayBuffer[]; srams: (ArrayBuffer | null)[]; view: number };
+  strict?: boolean;
   display: DisplayOptions;
   volume: number;
   latencyMs: number;
@@ -95,7 +97,7 @@ export class Emulator {
       type: 'init', coreUrl: new URL(o.coreUrl, location.href).href, rom, fileName: o.fileName,
       canvas: offscreen, display: o.display,
       audio: { rate: this.ctx.sampleRate, latencyMs: o.latencyMs, sab, port, capacity: AUDIO_CAP },
-      options: o.options, systemFiles: o.systemFiles, sram: o.sram, state: o.state, rewind: o.rewind,
+      options: o.options, systemFiles: o.systemFiles, sram: o.sram, state: o.state, rewind: o.rewind, link: o.link, strict: o.strict,
     };
     const transfer: Transferable[] = [rom];
     if (offscreen) transfer.push(offscreen);

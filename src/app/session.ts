@@ -46,7 +46,7 @@ export class Session {
   constructor(public game: Game, canvas: HTMLCanvasElement) {
     this.emu = new Emulator(canvas, {
       stats: s => { this.stats = s; this.onStats?.(s); },
-      sram: d => { if (this.netplay) return; db.putSram(this.game.id, d).catch(e => this.onError?.('Could not write save data: ' + e)); },
+      sram: d => { if (this.netplay && !this.link) return; db.putSram(this.game.id, d).catch(e => this.onError?.('Could not write save data: ' + e)); },
       error: m => this.onError?.(m),
       notice: c => { if (c === 'rewind-heavy') toast('Rewind is off for this game so it runs smoothly (Settings → Advanced to force it)', 'info', 'info', 4500); },
     });
@@ -57,8 +57,12 @@ export class Session {
   private netplay = false;
 
   /** netplay: boot fresh on every machine (no SRAM/state/options) and never auto-save. */
-  async start(opts: { slot?: number; fresh?: boolean; netplay?: boolean } = {}) {
+  /** Link play: this machine runs every player's GBA; we keep writing back our own player's save. */
+  private link = false;
+
+  async start(opts: { slot?: number; fresh?: boolean; netplay?: boolean; link?: { players: number; srams: (ArrayBuffer | null)[]; view: number } } = {}) {
     this.netplay = !!opts.netplay;
+    this.link = !!opts.link;
     const sys = SYSTEMS[this.game.system];
     const cfg = this.cfg;
     const [rom, sram] = await Promise.all([romFor(this.game), opts.netplay ? undefined : db.sram(this.game.id)]);
@@ -66,7 +70,9 @@ export class Session {
     const slot = opts.fresh || opts.netplay ? undefined : opts.slot ?? (cfg.saves.resume ? AUTO_SLOT : undefined);
     if (slot !== undefined) state = await (await db.state(this.game.id, slot))?.state.arrayBuffer();
     await this.emu.start({
-      coreUrl: `${import.meta.env.BASE_URL}cores/${coreFile(sys.core)}.mjs`,
+      coreUrl: `${import.meta.env.BASE_URL}cores/${opts.link ? 'gbalink' : coreFile(sys.core)}.mjs`,
+      link: opts.link ? { roms: Array.from({ length: opts.link.players }, () => rom), srams: opts.link.srams, view: opts.link.view } : undefined,
+      strict: !!opts.netplay,
       rom, fileName: this.game.fileName,
       sram: sram ? (sram.slice().buffer as ArrayBuffer) : undefined, state,
       options: { ...(opts.netplay ? {} : cfg.coreOptions[sys.core]), ...systemOptions(sys.id, cfg) },
