@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { ArrowLeft, Database, Gamepad2, Info, Monitor, Network, Save, SlidersHorizontal, Volume2, Upload, Download, Trash2, Palette, UserRound, LogOut } from 'lucide-preact';
 import { account, signIn, signUp, signOut, USERNAME_RULE } from '../app/account.ts';
+import { cloudList } from '../app/cloud.ts';
 import { DEFAULTS, library, settings, toast, updateSettings, useStore, refreshLibrary, type Settings as S } from '../app/store.ts';
 import { db, exportBackup, importBackup, persist, type Game } from '../app/db.ts';
 import { HOMEBREW } from '../app/library.ts';
@@ -315,6 +316,27 @@ function Netplay() {
 }
 
 // ---------- account ----------
+function CloudSaves() {
+  const games = useStore(library);
+  const [list, setList] = useState<Awaited<ReturnType<typeof cloudList>> | null>(null);
+  const [err, setErr] = useState('');
+  useEffect(() => { cloudList().then(setList, e => setErr(e.message)); }, []);
+  const byGame = new Map<string, { sram?: number; state?: number; size: number }>();
+  for (const s of list ?? []) { const g = byGame.get(s.game) ?? { size: 0 }; g[s.kind] = s.updated; g.size += s.size; byGame.set(s.game, g); }
+  const total = (list ?? []).reduce((n, s) => n + s.size, 0);
+  return (
+    <>
+      <div class="section-title" style={{ marginTop: '22px' }}><h2 style={{ fontSize: '17px' }}>Cloud saves</h2><span class="muted">{list ? `${fmtBytes(total)} of 64 MB` : ''}</span></div>
+      <p class="muted" style={{ fontSize: '13.5px', marginTop: '-4px' }}>On while you're signed in. Your in-game saves (and where you left off, for games whose save state fits) follow you to any device: add the same ROM there and press play. ROMs are never uploaded.</p>
+      {err && <div class="notice bad">{err}</div>}
+      {list && !list.length && <p class="muted">Nothing yet: play a game and save in-game.</p>}
+      {[...byGame].map(([id, g]) => (
+        <Row key={id} title={games.find(x => x.id === id)?.title ?? 'A game not in this library'} desc={[g.sram && 'In-game save', g.state && 'Resume point'].filter(Boolean).join(' + ') + ` · ${fmtBytes(g.size)} · ${new Date(Math.max(g.sram ?? 0, g.state ?? 0)).toLocaleString()}`} />
+      ))}
+    </>
+  );
+}
+
 function AccountSection() {
   const a = useStore(account);
   const [mode, setMode] = useState<'in' | 'up'>('in');
@@ -329,7 +351,7 @@ function AccountSection() {
       <Row title={a.username} desc="Your name in multiplayer rooms.">
         <button class="btn" onClick={() => { signOut(); toast('Signed out', 'info', 'info'); }}><LogOut />Sign out</button>
       </Row>
-      <p class="muted" style={{ fontSize: '13.5px' }}>Your games and saves still live in this browser only.</p>
+      <CloudSaves />
     </>
   );
   const submit = async (e: Event) => {

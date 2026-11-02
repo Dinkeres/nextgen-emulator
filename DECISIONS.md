@@ -116,3 +116,8 @@ Every judgment call made while building this autonomously, with the reason. Newe
     same origin (dinkeres.github.io), so one sign-in covers both sites, ready for a shared hub later.
     Optional: everything works signed out; when signed in, the account name is your multiplayer name.
     Saves stay in the browser for now (cloud saves would need new endpoints on that server).
+41. **Cloud saves on the shared account server** (src/app/cloud.ts; Horizon's web/backend `/api/saves`).
+    Per game (ROM SHA-256) the battery save and the auto-save state (≤1.9 MB: GBA yes, DS no) sync for
+    signed-in players: pulled before a game starts (4 s timeout, offline = local saves), pushed a few seconds
+    after a change and on exit. Newest wins; a replaced local copy is kept in kv `cloud-backup:<game>:<kind>`.
+    64 MB per account. Test: bench/cloud-e2e.mjs (two browsers, local server copy).

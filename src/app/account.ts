@@ -11,6 +11,8 @@ export interface Account { username: string }
 export const account = new Store<Account | null>(null);
 
 const token = (): string | null => { try { return JSON.parse(localStorage.getItem(KEY) ?? 'null')?.token ?? null; } catch { return null; } };
+/** The session token (for other account APIs, e.g. cloud saves). */
+export const authToken = (): string | null => token();
 const keep = (t: string | null) => { try { if (t) localStorage.setItem(KEY, JSON.stringify({ token: t })); else localStorage.removeItem(KEY); } catch { /* storage blocked */ } };
 
 async function call(path: string, body?: object): Promise<Record<string, string>> {

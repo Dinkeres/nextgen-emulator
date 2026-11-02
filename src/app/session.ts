@@ -5,6 +5,7 @@ import type { Stats } from '../engine/protocol.ts';
 import { db, type Game } from './db.ts';
 import { romFor } from './library.ts';
 import { effective, settings, toast, refreshLibrary, type Settings } from './store.ts';
+import { cloudPull, cloudPush, cloudFlush } from './cloud.ts';
 
 export const AUTO_SLOT = 0;
 
@@ -46,7 +47,7 @@ export class Session {
   constructor(public game: Game, canvas: HTMLCanvasElement) {
     this.emu = new Emulator(canvas, {
       stats: s => { this.stats = s; this.onStats?.(s); },
-      sram: d => { if (this.netplay && !this.link) return; db.putSram(this.game.id, d).catch(e => this.onError?.('Could not write save data: ' + e)); },
+      sram: d => { if (this.netplay && !this.link) return; db.putSram(this.game.id, d).catch(e => this.onError?.('Could not write save data: ' + e)); cloudPush(this.game.id, 'sram', d); },
       error: m => this.onError?.(m),
       notice: c => { if (c === 'rewind-heavy') toast('Rewind is off for this game so it runs smoothly (Settings → Advanced to force it)', 'info', 'info', 4500); },
     });
@@ -65,6 +66,17 @@ export class Session {
     this.link = !!opts.link;
     const sys = SYSTEMS[this.game.system];
     const cfg = this.cfg;
+    if (!opts.netplay) {
+      const id = this.game.id;
+      const got = await cloudPull(id, this.game.lastPlayed, {
+        sram: () => db.sram(id),
+        state: async () => { const s = await db.state(id, AUTO_SLOT); return s ? new Uint8Array(await s.state.arrayBuffer()) : undefined; },
+      }, {
+        sram: d => db.putSram(id, d),
+        state: (d, t) => db.putState({ id: `${id}:${AUTO_SLOT}`, gameId: id, slot: AUTO_SLOT, state: new Blob([d as BlobPart]), thumb: null, createdAt: t, playTime: this.game.playTime }),
+      });
+      if (got.length) toast(got.includes('state') ? 'Picked up where you left off on your other device' : 'Loaded your cloud save', 'save', 'success', 4000);
+    }
     const [rom, sram] = await Promise.all([romFor(this.game), opts.netplay ? undefined : db.sram(this.game.id)]);
     let state: ArrayBuffer | undefined;
     const slot = opts.fresh || opts.netplay ? undefined : opts.slot ?? (cfg.saves.resume ? AUTO_SLOT : undefined);
@@ -135,6 +147,7 @@ export class Session {
   async save(slot: number): Promise<void> {
     const { state, thumb } = await this.snapshot();
     await db.putState({ id: `${this.game.id}:${slot}`, gameId: this.game.id, slot, state: new Blob([state as BlobPart]), thumb, createdAt: Date.now(), playTime: this.game.playTime });
+    if (slot === AUTO_SLOT && !this.netplay) cloudPush(this.game.id, 'state', state);
   }
 
   autoSave(reason: 'timer' | 'pause' | 'hidden' | 'pagehide' | 'exit'): Promise<void> {
@@ -168,6 +181,7 @@ export class Session {
     this.trackTime();
     this.emu.pause();
     await this.autoSave('exit');
+    cloudFlush();
     this.emu.destroy();
     await refreshLibrary();
   }
