@@ -81,6 +81,14 @@ core() {
               link "$1" /tmp/melonds-objs.a
               OPT="$keep"; export EMCC_CFLAGS="$OPT"; LINKEXTRA="";;
     desmume2015) link desmume2015 "$(build_make desmume2015/desmume Makefile.libretro desmume2015_libretro_emscripten.bc)";;
+    # N linked GBAs in one module for link-cable multiplayer (cores/glue/gbalink.c, not libretro)
+    gbalink)
+      mkdir -p "$SRC/mgba/build-link" && cd "$SRC/mgba/build-link"
+      emcmake cmake .. -DCMAKE_BUILD_TYPE=Release -DLIBMGBA_ONLY=ON -DBUILD_STATIC=ON -DBUILD_SHARED=OFF         -DM_CORE_GB=OFF -DM_CORE_GBA=ON -DDISABLE_THREADING=ON -DUSE_DEBUGGERS=OFF -DUSE_GDB_STUB=OFF         -DUSE_FFMPEG=OFF -DUSE_ZLIB=OFF -DUSE_PNG=OFF -DUSE_LIBZIP=OFF -DUSE_SQLITE3=OFF -DUSE_ELF=OFF         -DUSE_LUA=OFF -DUSE_EDITLINE=OFF -DUSE_EPOXY=OFF -DUSE_DISCORD_RPC=OFF -DENABLE_SCRIPTING=OFF         -DUSE_LZMA=OFF -DUSE_MINIZIP=OFF -DUSE_JSON_C=OFF -DBUILD_GL=OFF -DBUILD_GLES2=OFF -DBUILD_GLES3=OFF         >"$HERE/../.build-gbalink.log" 2>&1 || { tail -20 "$HERE/../.build-gbalink.log"; return 1; }
+      emmake make -j$J >>"$HERE/../.build-gbalink.log" 2>&1 || { grep -m5 error "$HERE/../.build-gbalink.log"; return 1; }
+      local lib; lib=$(find . -name 'libmgba*.a' | head -1)
+      emcc $OPT "$HERE/glue/gbalink.c" "$lib" -I"$SRC/mgba/include" -I"$PWD/include" $(sed -n "s/^C_DEFINES = //p" CMakeFiles/mgba.dir/flags.make)         -o "$OUT/gbalink$SUFFIX.mjs" -sMODULARIZE=1 -sEXPORT_ES6=1 -sEXPORT_NAME=createCore         -sENVIRONMENT=web,worker,node -sALLOW_MEMORY_GROWTH=1 -sINITIAL_MEMORY=64MB -sSTACK_SIZE=4MB         -sEXPORTED_FUNCTIONS=_malloc,_free -sINVOKE_RUN=0 -sEXIT_RUNTIME=0         -sEXPORTED_RUNTIME_METHODS=HEAPU8,HEAP16,HEAPU16,HEAPU32,HEAPF64 2>&1 | grep -v "warning:" | head -20
+      ls -la "$OUT/gbalink$SUFFIX.wasm";;
     *) echo "unknown core $1"; return 1;;
   esac
 }

@@ -10,6 +10,7 @@
 #include <mgba/core/core.h>
 #include <mgba/core/config.h>
 #include <mgba/core/lockstep.h>
+#include <mgba/core/timing.h>
 #include <mgba/gba/interface.h>
 #include <mgba/internal/gba/gba.h>
 #include <mgba/internal/gba/sio/lockstep.h>
@@ -165,10 +166,20 @@ API size_t lk_audio_frames(void) { return aframes; }
 API unsigned lk_sample_rate(void) { return np ? cores[0]->audioSampleRate(cores[0]) : 32768; }
 API void lk_reset(void) { for (int i = 0; i < np; i++) cores[i]->reset(cores[i]); }
 
-// --- save states: all GBAs + scheduler flags (the link driver state is inside each GBA's state) ---
+// --- save states: every GBA's core state + its link-driver state + scheduler flags ---
+// The link driver (and, via player 0, the shared link clock) is serialized by mGBA as *extended*
+// state data, which core->saveState() leaves out, so it is stored here explicitly.
+static size_t drv_state(int i, void **out) {
+	size_t sz = 0; *out = NULL;
+	if (np > 1 && drivers[i].d.saveState) drivers[i].d.saveState(&drivers[i].d, out, &sz);
+	return sz;
+}
 API size_t lk_state_size(void) {
 	size_t n = 16;
-	for (int i = 0; i < np; i++) n += cores[i]->stateSize(cores[i]) + 8;
+	for (int i = 0; i < np; i++) {
+		void *d; size_t ds = drv_state(i, &d); free(d);
+		n += cores[i]->stateSize(cores[i]) + ds + 16;
+	}
 	return n;
 }
 API int lk_state_save(uint8_t *buf, size_t size) {
@@ -178,10 +189,14 @@ API int lk_state_save(uint8_t *buf, size_t size) {
 	for (int i = 0; i < MAXP; i++) p[i] = i < np ? (uint8_t)asleep[i] : 0;
 	p += 16;
 	for (int i = 0; i < np; i++) {
-		size_t s = cores[i]->stateSize(cores[i]);
-		memcpy(p, &s, 4); p += 8;
-		if (!cores[i]->saveState(cores[i], p)) return 0;
+		uint32_t s = (uint32_t)cores[i]->stateSize(cores[i]);
+		void *d; uint32_t ds = (uint32_t)drv_state(i, &d);
+		memcpy(p, &s, 4); memcpy(p + 4, &ds, 4); p += 16;
+		if (!cores[i]->saveState(cores[i], p)) { free(d); return 0; }
 		p += s;
+		if (ds) memcpy(p, d, ds);
+		free(d);
+		p += ds;
 	}
 	return 1;
 }
@@ -189,9 +204,15 @@ API int lk_state_load(const uint8_t *buf, size_t size) {
 	if (size < 16) return 0;
 	const uint8_t *p = buf + 16;
 	for (int i = 0; i < np; i++) {
-		uint32_t s; memcpy(&s, p, 4); p += 8;
+		uint32_t s, ds; memcpy(&s, p, 4); memcpy(&ds, p + 4, 4); p += 16;
 		if (!cores[i]->loadState(cores[i], p)) return 0;
 		p += s;
+		if (ds && drivers[i].d.loadState) {
+			struct GBA *gba = (struct GBA *)cores[i]->board;
+			mTimingDeschedule(&gba->timing, &drivers[i].event); // drop the old timeline's link event
+			if (!drivers[i].d.loadState(&drivers[i].d, p, ds)) return 0;
+		}
+		p += ds;
 	}
 	for (int i = 0; i < np; i++) asleep[i] = buf[i];
 	return 1;
@@ -208,4 +229,14 @@ API void *lk_sram_ptr(void) { return sram_tmp; }
 API int lk_sram_restore(int i, const void *data, size_t size) {
 	if (i < 0 || i >= np) return 0;
 	return cores[i]->savedataRestore(cores[i], data, size, false);
+}
+
+// debug: bit i = GBA i asleep; plus coordinator fields
+API int lk_dbg(int what) {
+	if (what == 0) { int m = 0; for (int i = 0; i < np; i++) m |= asleep[i] << i; return m; }
+	if (what == 1) return coord.waiting;
+	if (what == 2) return coord.transferActive;
+	if (what == 3) return coord.cycle;
+	if (what >= 10 && what < 10 + MAXP && what - 10 < np) return cores[what - 10]->frameCounter(cores[what - 10]);
+	return -1;
 }
