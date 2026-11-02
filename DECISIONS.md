@@ -63,8 +63,9 @@ Every judgment call made while building this autonomously, with the reason. Newe
 20. **GGPO-style rollback** in the worker; transport-agnostic so it is tested in Node with real cores over a simulated lossy
     network. Inputs go over unreliable/unordered WebRTC channels with redundancy (all unacknowledged inputs resent);
     hashes and resync states over a reliable channel.
-21. **Strict mode**: during netplay the core is never told that frames are skipped. Tests found two cores change emulated
-    state when audio/video is disabled, which would desync rollback re-simulation.
+21. **Strict mode**: during netplay the core is never told that frames are skipped (tests found two cores change emulated
+    state when audio/video is disabled, which would desync re-simulation), and the core's real-time clock is frozen
+    (Gambatte's RTC read the wall clock, making runs differ by the second).
 22. **Genesis uses delay-based netplay.** Tests showed Genesis Plus GX's state load is not exact (re-simulated frames drift by
     a few bytes that then spread). Delay-based lockstep never loads states and passes all network tests.
 23. **GB/GBC/GBA have no netplay**: they're single-player without link-cable emulation.

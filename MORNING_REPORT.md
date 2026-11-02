@@ -13,6 +13,8 @@ system I measured.
 | ![](docs/screenshots/desktop-08-library-continue.png) | ![](docs/screenshots/desktop-04-ingame.png) | ![](docs/screenshots/phone-14-touch-snes.png) |
 | **Pause menu** | **Settings (live shader preview)** | **Game details** |
 | ![](docs/screenshots/desktop-07-save-slots.png) | ![](docs/screenshots/desktop-10-settings-video.png) | ![](docs/screenshots/desktop-03-details.png) |
+| **Multiplayer lobby** | **Light mode** | **Tablet** |
+| ![](docs/screenshots/desktop-17-lobby.png) | ![](docs/screenshots/desktop-16-light-details.png) | ![](docs/screenshots/tablet-08-library-continue.png) |
 
 More (desktop/tablet/phone for every screen, light mode) in `docs/screenshots/`.
 
@@ -64,10 +66,11 @@ connection quality overlay, graceful disconnects, ~80-line signaling server (loc
 **Tested:** two real cores over simulated 50/100/200 ms with 1–5 % loss — 0 desyncs, bit-exact vs. an offline reference;
 two real browser pages over WebRTC (NES, SNES, Genesis) — 0 desyncs.
 
-**Part 7 — testing & polish.** ✅ 21 unit/determinism tests (storage, save states, backups, settings, input mapping,
-rewind), netplay suites, soak test, close-tab persistence test, browser benchmarks, screenshot review at
+**Part 7 — testing & polish.** ✅ 22 unit/determinism tests (storage, save states, backups, settings, input mapping,
+rewind, zip import) + 10 netplay tests (incl. a deliberately corrupted peer healed by automatic resync), netplay suites, soak test, close-tab persistence test, browser benchmarks, screenshot review at
 phone/tablet/desktop sizes (fixed: Preact 11 dropping numeric styles, phone header overflow, touch layout, portrait
-docking, text-field navigation trap, a store subscription race, a first-visit reload that could restart a game).
+docking, text-field navigation trap, a store subscription race, a first-visit reload that could restart a game, a
+wall-clock dependency in Gambatte's RTC, Safari audio unlock). Also added zipped-ROM import.
 
 ## Benchmarks (before → after)
 

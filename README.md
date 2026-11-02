@@ -12,6 +12,8 @@ Fast, smooth, never loses your progress — with rewind, fast-forward, auto-save
 |---|---|---|
 | ![In game](docs/screenshots/desktop-04-ingame.png) | ![Pause menu](docs/screenshots/desktop-07-save-slots.png) | ![Phone touch controls](docs/screenshots/phone-14-touch-snes.png) |
 
+![Multiplayer lobby](docs/screenshots/desktop-17-lobby.png)
+
 ## Features
 
 **Engine**

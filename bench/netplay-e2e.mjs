@@ -34,6 +34,8 @@ await guest.waitForSelector('.pslots');
 await guest.click('text=Ready up');
 await host.waitForFunction(() => !document.querySelector('.lobby .btn.primary.big')?.disabled, null, { timeout: 20000 });
 await guest.locator('.chat input').fill('hello from guest'); await guest.locator('.chat form button').click();
+await sleep(1500);
+if (process.env.SHOT) await host.screenshot({ path: 'docs/screenshots/desktop-17-lobby.png' });
 await host.click('text=Start game');
 await Promise.all([host.waitForSelector('canvas.screen'), guest.waitForSelector('canvas.screen')]);
 await sleep(4000);
