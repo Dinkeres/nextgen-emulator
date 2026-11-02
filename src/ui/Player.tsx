@@ -60,7 +60,6 @@ export function Player({ game, slot, fresh, nav, net }: { game: Game; slot?: num
       try {
         if (net) await net.attach(sess, input); else await sess.start({ slot, fresh });
         setPhase('playing');
-        lockOrientation();
       } catch (e) {
         setError((e as Error).message || String(e)); setPhase('error');
       }
@@ -240,7 +239,7 @@ export function Player({ game, slot, fresh, nav, net }: { game: Game; slot?: num
           <div class={`hud top ${hud ? '' : 'hidden'}`}>
             <button class="hbtn" onClick={exit} aria-label="Exit to library"><ArrowLeft /><span class="tip">Library</span></button>
             <div class="title">{game.title}</div>
-            {!touchMode && <button class="hbtn" onClick={toggleFs} aria-label="Fullscreen">{fs ? <Minimize /> : <Maximize />}<span class="tip">Fullscreen</span></button>}
+            {document.fullscreenEnabled && <button class="hbtn" onClick={toggleFs} aria-label="Fullscreen">{fs ? <Minimize /> : <Maximize />}<span class="tip">Fullscreen</span></button>}
             <button class="hbtn" onClick={() => { setMenu(true); setPanel('settings'); }} aria-label="Settings"><Gear /><span class="tip">Settings</span></button>
           </div>
           <div class={`hud bottom ${hud ? '' : 'hidden'}`}>
@@ -374,9 +373,10 @@ function NetOverlay({ stats, names }: { stats: NonNullable<Stats['net']>; names:
 
 export const speedLabel = (v: number) => v >= 100 ? 'Max' : `${v}×`;
 
+/** In fullscreen on phones, keep the orientation the player is holding (no accidental rotation). */
 function lockOrientation() {
   const o = screen.orientation as ScreenOrientation & { lock?: (o: string) => Promise<void> };
-  if (matchMedia('(pointer: coarse)').matches) o?.lock?.('landscape').catch(() => {});
+  if (matchMedia('(pointer: coarse)').matches) o?.lock?.(innerWidth > innerHeight ? 'landscape' : 'portrait').catch(() => {});
 }
 
 void BTN;
