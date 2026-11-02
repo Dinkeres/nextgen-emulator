@@ -39,3 +39,12 @@ Things I deliberately did not decide alone, or that you should know before relyi
 12. Gambatte is built without LTO because LTO miscompiles it (wasm trap at load). If a future Emscripten fixes this, remove
     the exception in `cores/build.sh` for a free speed-up.
 13. `docs/screenshots/` is ~8 MB of PNGs committed for the README; regenerate any time with `npm run screenshots`.
+
+## In progress (session 2)
+14. **GBA link-cable multiplayer** — design done and glue written (`cores/glue/gbalink.c`: up to 4 mGBA cores in one
+    wasm module, linked by mGBA's lockstep coordinator, scheduled deterministically on one thread). Not yet built or
+    wired into the app. Remaining: build mGBA as a static library + this glue, a JS `LinkCore` for the worker,
+    per-player save exchange in the lobby, an original link test ROM, and determinism tests.
+15. **DS online play** — real DS *wireless* emulation across browsers isn't feasible with this melonDS version (one
+    console per process, real-time wireless timing). The plan is a shared-console mode (players share one DS, touch
+    synced over the network) using the existing delay-based netcode.
