@@ -484,3 +484,4 @@ main.page { padding: 24px var(--gutter) calc(48px + env(safe-area-inset-bottom))
   .player.touch-mode canvas.screen { top: calc(env(safe-area-inset-top) + 96px); height: calc(55% - 96px - env(safe-area-inset-top)); }
   .player.touch-mode .hud.bottom { display: none; }
 }
+:root[data-theme='light'] a { color: #0e7490; }

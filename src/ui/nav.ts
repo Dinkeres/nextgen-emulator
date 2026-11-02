@@ -32,7 +32,12 @@ export function move(dir: 'up' | 'down' | 'left' | 'right') {
   if (!all.length) return;
   const from = (document.activeElement && root.contains(document.activeElement) && document.activeElement !== document.body)
     ? document.activeElement as HTMLElement : null;
-  if (!from) { mark(all[0]); return; }
+  if (!from) {
+    // start somewhere useful: a game card or primary action, never the search box
+    const pick = ['.cont-card', '.tile', '.mitem', '.btn.primary'].map(sel => all.find(e => e.matches(sel))).find(Boolean);
+    mark(pick ?? all.find(e => !e.matches('input, textarea, select')) ?? all[0]);
+    return;
+  }
   const a = from.getBoundingClientRect();
   const ax = a.left + a.width / 2, ay = a.top + a.height / 2;
   let best: HTMLElement | null = null, bestScore = Infinity;
@@ -60,8 +65,10 @@ function isTyping() {
 
 export function installNav() {
   window.addEventListener('keydown', e => {
-    if (!gamepadUI || isTyping() || e.defaultPrevented) return;
+    if (!gamepadUI || e.defaultPrevented) return;
     const d = ({ ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right' } as const)[e.key as 'ArrowUp'];
+    // in a single-line text field Left/Right move the caret, but Up/Down leave the field
+    if (isTyping() && !(document.activeElement?.tagName === 'INPUT' && (d === 'up' || d === 'down'))) return;
     if (d) { e.preventDefault(); move(d); }
   });
   window.addEventListener('pointermove', () => { current?.classList.remove('nav-focus'); }, { passive: true });
