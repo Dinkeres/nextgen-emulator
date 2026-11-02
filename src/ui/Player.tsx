@@ -51,6 +51,7 @@ export function Player({ game, slot, fresh, nav, net }: { game: Game; slot?: num
     setGamepadUI(false);
     const sess = new Session(game, canvasRef.current!);
     sessRef.current = sess;
+    (window as unknown as { __kaiser?: Session }).__kaiser = sess; // for tests/debugging
     sess.onStats = st => setStats(st);
     sess.onError = m => toast(m, 'alert', 'error', 5000);
     input.keys = cfg.controls.keys; input.pad = cfg.controls.pad; input.rebuild();
