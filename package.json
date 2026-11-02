@@ -1,0 +1,28 @@
+{
+  "name": "nextgen-emulator",
+  "private": true,
+  "version": "0.1.0",
+  "license": "GPL-3.0-or-later",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "test": "node --test --experimental-strip-types tests/*.test.ts",
+    "bench": "node --experimental-strip-types bench/core-bench.ts",
+    "signal": "node server/signal.mjs"
+  },
+  "dependencies": {
+    "@fontsource-variable/outfit": "^5.3.0",
+    "lucide-preact": "^1.66.0",
+    "preact": "^11.1.1"
+  },
+  "devDependencies": {
+    "@preact/preset-vite": "^2.10.6",
+    "@types/node": "^26.6.6",
+    "fake-indexeddb": "^6.2.7",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.5",
+    "ws": "^8.22.1"
+  }
+}
