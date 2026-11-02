@@ -111,3 +111,8 @@ Every judgment call made while building this autonomously, with the reason. Newe
     approach from Quetzal Online by Lost (github.com/OneLostGamer/Quetzal-Online); our code is a fresh
     implementation. Needed mGBA's 0.10 "unplugged cable" behaviour (cores/patches/mgba-unplugged.sh): 0.11-dev
     completes multiplayer transfers with no cable, which wipes the game's player count every frame.
+40. **Accounts are Horizon's accounts** (src/app/account.ts). Same server (Horizon's web backend Worker:
+    email + unique username + password, PBKDF2-hashed, 30-day sessions) and the same localStorage key on the
+    same origin (dinkeres.github.io), so one sign-in covers both sites, ready for a shared hub later.
+    Optional: everything works signed out; when signed in, the account name is your multiplayer name.
+    Saves stay in the browser for now (cloud saves would need new endpoints on that server).

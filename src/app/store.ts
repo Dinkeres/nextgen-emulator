@@ -54,7 +54,7 @@ export function effective(s: Settings, g?: Game | null): Settings {
 
 // ---------------- store ----------------
 type Listener = () => void;
-class Store<T> {
+export class Store<T> {
   private ls = new Set<Listener>();
   value: T;
   constructor(value: T) { this.value = value; }

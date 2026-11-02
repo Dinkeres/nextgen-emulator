@@ -4,6 +4,7 @@ import { App } from './ui/App.tsx';
 import { loadSettings, refreshLibrary } from './app/store.ts';
 import { ensureHomebrew } from './app/library.ts';
 import { persist } from './app/db.ts';
+import { refreshAccount } from './app/account.ts';
 import { installNav } from './ui/nav.ts';
 
 declare const __BUILD__: string;
@@ -21,6 +22,7 @@ async function registerSW() {
   await loadSettings();
   render(<App />, document.getElementById('app')!);
   installNav();
+  refreshAccount();
   await refreshLibrary();
   await ensureHomebrew();
   await refreshLibrary();

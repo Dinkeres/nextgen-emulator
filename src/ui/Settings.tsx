@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
-import { ArrowLeft, Database, Gamepad2, Info, Monitor, Network, Save, SlidersHorizontal, Volume2, Upload, Download, Trash2, Palette } from 'lucide-preact';
+import { ArrowLeft, Database, Gamepad2, Info, Monitor, Network, Save, SlidersHorizontal, Volume2, Upload, Download, Trash2, Palette, UserRound, LogOut } from 'lucide-preact';
+import { account, signIn, signUp, signOut, USERNAME_RULE } from '../app/account.ts';
 import { DEFAULTS, library, settings, toast, updateSettings, useStore, refreshLibrary, type Settings as S } from '../app/store.ts';
 import { db, exportBackup, importBackup, persist, type Game } from '../app/db.ts';
 import { HOMEBREW } from '../app/library.ts';
@@ -11,8 +12,9 @@ import { speedLabel, DS_LAYOUTS } from './Player.tsx';
 import { DS_BIOS_FILES } from '../app/session.ts';
 import type { Nav } from './App.tsx';
 
-type Section = 'video' | 'audio' | 'controls' | 'saves' | 'netplay' | 'advanced' | 'about';
+type Section = 'account' | 'video' | 'audio' | 'controls' | 'saves' | 'netplay' | 'advanced' | 'about';
 const SECTIONS: [Section, string, typeof Monitor][] = [
+  ['account', 'Account', UserRound],
   ['video', 'Video', Monitor], ['audio', 'Audio', Volume2], ['controls', 'Controls', Gamepad2], ['saves', 'Saves & storage', Save],
   ['netplay', 'Multiplayer', Network], ['advanced', 'Advanced', SlidersHorizontal], ['about', 'About', Info],
 ];
@@ -50,6 +52,7 @@ export function SettingsPage({ nav, section: initial }: { nav: Nav; section?: st
             {SECTIONS.map(([id, label, Icon]) => <button key={id} class={sec === id ? 'on' : ''} onClick={() => setSec(id)}><Icon />{label}</button>)}
           </nav>
           <div class="group" key={sec} style={{ animation: 'page-in var(--med) var(--ease)' }}>
+            {sec === 'account' && <AccountSection />}
             {sec === 'video' && <Video />}
             {sec === 'audio' && <Audio />}
             {sec === 'controls' && <Controls />}
@@ -307,6 +310,52 @@ function Netplay() {
       <Row title="Signaling server" desc="Only used to introduce players; game traffic goes peer-to-peer. See server/README.md to run your own.">
         <input class="input" style={{ width: '260px' }} value={s.signalUrl} onInput={e => set('netplay', { signalUrl: (e.target as HTMLInputElement).value })} aria-label="Signaling server URL" />
       </Row>
+    </>
+  );
+}
+
+// ---------- account ----------
+function AccountSection() {
+  const a = useStore(account);
+  const [mode, setMode] = useState<'in' | 'up'>('in');
+  const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [err, setErr] = useState('');
+  const [busy, setBusy] = useState(false);
+  if (a) return (
+    <>
+      <h3>Account</h3><p class="lead">You're signed in. This is the same account as Horizon: signing in or out here does the same there.</p>
+      <Row title={a.username} desc="Your name in multiplayer rooms.">
+        <button class="btn" onClick={() => { signOut(); toast('Signed out', 'info', 'info'); }}><LogOut />Sign out</button>
+      </Row>
+      <p class="muted" style={{ fontSize: '13.5px' }}>Your games and saves still live in this browser only.</p>
+    </>
+  );
+  const submit = async (e: Event) => {
+    e.preventDefault();
+    setErr('');
+    if (mode === 'up' && !USERNAME_RULE.test(username.trim())) { setErr('Usernames are 3–16 letters, numbers or _.'); return; }
+    if (mode === 'up' && password.length < 8) { setErr('Use at least 8 characters for your password.'); return; }
+    setBusy(true);
+    try {
+      if (mode === 'up') await signUp(email, username, password); else await signIn(email, password);
+      setPassword('');
+      toast(`Signed in as ${account.value?.username}`, 'success', 'success');
+    } catch (x) { setErr((x as Error).message); }
+    setBusy(false);
+  };
+  return (
+    <>
+      <h3>Account</h3><p class="lead">One account for Kaiser and Horizon. It's optional: everything works signed out.</p>
+      <Chips value={mode} options={[['in', 'Sign in'], ['up', 'Create account']]} onChange={m => { setMode(m); setErr(''); }} />
+      <form onSubmit={submit} style={{ display: 'grid', gap: '10px', maxWidth: '360px', marginTop: '14px' }}>
+        <input class="input" type="email" autocomplete="email" placeholder="Email" value={email} onInput={e => setEmail((e.target as HTMLInputElement).value)} aria-label="Email" required />
+        {mode === 'up' && <input class="input" autocomplete="username" placeholder="Username (3–16 letters, numbers, _)" value={username} maxLength={16} onInput={e => setUsername((e.target as HTMLInputElement).value)} aria-label="Username" required />}
+        <input class="input" type="password" autocomplete={mode === 'up' ? 'new-password' : 'current-password'} placeholder={mode === 'up' ? 'Password (8+ characters)' : 'Password'} value={password} onInput={e => setPassword((e.target as HTMLInputElement).value)} aria-label="Password" required />
+        {err && <div class="notice bad" role="alert">{err}</div>}
+        <button class="btn primary" type="submit" disabled={busy}>{busy ? 'One moment…' : mode === 'up' ? 'Create account' : 'Sign in'}</button>
+      </form>
     </>
   );
 }

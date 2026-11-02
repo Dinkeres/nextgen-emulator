@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'preact/hooks';
-import { Clock, Grid2x2, Heart, List, Play, Plus, Search, Settings as Gear, Sparkles, Star, Upload, Users } from 'lucide-preact';
+import { Clock, Grid2x2, Heart, List, Play, Plus, Search, Settings as Gear, Sparkles, Star, Upload, Users, UserRound } from 'lucide-preact';
+import { account } from '../app/account.ts';
 import { library, settings, updateSettings, useStore } from '../app/store.ts';
 import { addFiles, pickFiles } from '../app/library.ts';
 import { SYSTEMS } from '../engine/systems.ts';
@@ -51,6 +52,7 @@ export function Library({ nav }: { nav: Nav }) {
         <div class="actions">
           <button class="btn primary" onClick={add}><Plus /><span class="hide-sm">Add games</span></button>
           <button class="btn icon" onClick={() => nav({ name: 'lobby' })} aria-label="Multiplayer"><Users /></button>
+          <AccountButton nav={nav} />
           <button class="btn icon" onClick={() => nav({ name: 'settings' })} aria-label="Settings"><Gear /></button>
         </div>
       </header>
@@ -154,4 +156,11 @@ function ContinueCard({ game, onPlay }: { game: Game; onPlay: () => void }) {
       </div>
     </button>
   );
+}
+
+function AccountButton({ nav }: { nav: Nav }) {
+  const a = useStore(account);
+  return a
+    ? <button class="btn" onClick={() => nav({ name: 'settings', section: 'account' })} aria-label={`Account: ${a.username}`}><UserRound /><span class="hide-sm">{a.username}</span></button>
+    : <button class="btn" onClick={() => nav({ name: 'settings', section: 'account' })}><UserRound /><span class="hide-sm">Sign in</span></button>;
 }

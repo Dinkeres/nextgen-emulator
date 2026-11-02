@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'preact/hooks';
 import { ArrowLeft, Check, Copy, Crown, Eye, Gamepad2, Keyboard, Link2, LogIn, Play, Plus, Send, Users, AlertTriangle } from 'lucide-preact';
 import { library, settings, toast, updateSettings, useStore } from '../app/store.ts';
 import { addFiles, pickFiles } from '../app/library.ts';
+import { account } from '../app/account.ts';
 import { SYSTEMS } from '../engine/systems.ts';
 import type { Game } from '../app/db.ts';
 import { NetSession, type LobbyPeer } from '../net/session.ts';
@@ -20,13 +21,14 @@ export function Lobby({ nav, game: initialGame, room: joinRoom }: { nav: Nav; ga
   const [err, setErr] = useState('');
   const [net, setNet] = useState<NetSession | null>(null);
   const [, force] = useState(0);
-  const name = s.netplay.name || 'Player';
+  const acct = useStore(account);
+  const name = acct?.username || s.netplay.name || 'Player';
   const started = useRef(false);
 
   useEffect(() => net?.sub(() => force(n => n + 1)), [net]);
   useEffect(() => () => { if (!started.current) net?.close(); }, [net]);
   // auto-join from an invite link once a name exists
-  useEffect(() => { if (joinRoom && s.netplay.name) connect({ room: joinRoom }); }, []);
+  useEffect(() => { if (joinRoom && (s.netplay.name || account.value)) connect({ room: joinRoom }); }, []);
 
   const connect = async (o: { create?: Game; room?: string }) => {
     setBusy(true); setErr('');
@@ -62,8 +64,9 @@ export function Lobby({ nav, game: initialGame, room: joinRoom }: { nav: Nav; ga
         <main class="page" style={{ maxWidth: '980px' }}>
           <div class="section-title" style={{ marginTop: '0px' }}><h2>Play together online</h2></div>
           <p style={{ color: 'var(--text-2)', marginTop: '-6px' }}>Rollback netplay: every player runs the game locally and only button presses are sent, so it feels like playing on the same couch.</p>
-          <div class="setting"><div class="lbl"><b>Your name</b><small>Shown to everyone in the room.</small></div>
-            <div class="ctl"><input class="input" value={s.netplay.name} maxLength={20} placeholder="Player" onInput={e => updateSettings(x => ({ ...x, netplay: { ...x.netplay, name: (e.target as HTMLInputElement).value } }))} aria-label="Your name" /></div></div>
+          {acct ? <div class="setting"><div class="lbl"><b>Playing as {acct.username}</b><small>Your account name is shown to everyone in the room.</small></div></div> :
+          <div class="setting"><div class="lbl"><b>Your name</b><small>Shown to everyone in the room. <a href="#" onClick={e => { e.preventDefault(); nav({ name: 'settings', section: 'account' }); }}>Sign in</a> to use your account name.</small></div>
+            <div class="ctl"><input class="input" value={s.netplay.name} maxLength={20} placeholder="Player" onInput={e => updateSettings(x => ({ ...x, netplay: { ...x.netplay, name: (e.target as HTMLInputElement).value } }))} aria-label="Your name" /></div></div>}
           {err && <div class="notice bad" style={{ margin: '14px 0' }}><AlertTriangle />{err}</div>}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '16px', marginTop: '18px' }}>
             <div class="card" style={{ padding: '20px' }}>
