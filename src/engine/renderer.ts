@@ -96,6 +96,8 @@ export class Renderer {
     return p;
   }
 
+  size(): [number, number] { return [this.canvas.width, this.canvas.height]; }
+
   resize(w: number, h: number) {
     if (this.canvas.width !== w || this.canvas.height !== h) { this.canvas.width = w; this.canvas.height = h; }
   }

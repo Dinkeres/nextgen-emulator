@@ -10,10 +10,10 @@ export interface TItem { id: string; kind: 'dpad' | 'btn' | 'pill' | 'shoulder' 
 const face = (sys: SystemInfo): TItem[] => {
   const btn = (b: ButtonName, x: number, y: number, s = 0.16): TItem => ({ id: b, kind: 'btn', b, x, y, s, label: buttonLabel(sys, b) });
   switch (sys.id) {
-    case 'snes': return [btn('X', 0.855, 0.47, 0.135), btn('A', 0.935, 0.63, 0.135), btn('B', 0.855, 0.79, 0.135), btn('Y', 0.775, 0.63, 0.135)];
+    case 'snes': case 'nds': return [btn('X', 0.855, 0.47, 0.135), btn('A', 0.935, 0.63, 0.135), btn('B', 0.855, 0.79, 0.135), btn('Y', 0.775, 0.63, 0.135)];
     case 'genesis': return [btn('Y', 0.72, 0.74, 0.15), btn('B', 0.82, 0.70, 0.15), btn('A', 0.92, 0.66, 0.15),
       btn('L', 0.74, 0.52, 0.11), btn('X', 0.83, 0.48, 0.11), btn('R', 0.92, 0.44, 0.11)];
-    default: return [btn('B', 0.80, 0.72, 0.17), btn('A', 0.92, 0.62, 0.17)];
+    default: return [btn('B', 0.74, 0.75, 0.16), btn('A', 0.9, 0.6, 0.16)];
   }
 };
 
@@ -36,8 +36,12 @@ export function defaultLayout(sys: SystemInfo): TItem[] {
 
 const DIRS = [BTN.RIGHT, BTN.DOWN, BTN.LEFT, BTN.UP];
 
-export function TouchControls({ system, input, editing, onDone, onMenu, onFf, onRewind }: {
+export function TouchControls({ system, input, editing, onDone, onMenu, onFf, onRewind, onStylus, split = 0.55 }: {
   system: SystemInfo; input: Input; editing: boolean; onDone: () => void; onMenu: () => void; onFf: (on: boolean) => void; onRewind: (on: boolean) => void;
+  /** touches that miss every control go to the game's touch screen (DS) */
+  onStylus?: (x: number, y: number, down: boolean) => void;
+  /** portrait: fraction of the height reserved for the game screen */
+  split?: number;
 }) {
   const s = useStore(settings);
   const key = system.id;
@@ -59,7 +63,7 @@ export function TouchControls({ system, input, editing, onDone, onMenu, onFf, on
   // Layout space -> screen: each control is anchored to its nearest edge (or the centre) in
   // units of the control size, so clusters stay compact and evenly spaced on any screen.
   // Portrait puts everything in the area under the game screen.
-  const region = portrait ? { y0: vw.h * 0.55, h: vw.h * 0.45 } : { y0: 0, h: vw.h };
+  const region = portrait ? { y0: vw.h * split, h: vw.h * (1 - split) } : { y0: 0, h: vw.h };
   const wr = Math.min(vw.w, unit * 1.9), hr = Math.min(region.h, unit * 0.95);
   const toX = (x: number) => Math.abs(x - 0.5) < 0.15 ? vw.w / 2 + (x - 0.5) * wr : x < 0.5 ? x * wr : vw.w - (1 - x) * wr;
   const toY = (y: number) => y < 0.4 ? region.y0 + y * hr : region.y0 + region.h - (1 - y) * hr;
@@ -110,13 +114,17 @@ export function TouchControls({ system, input, editing, onDone, onMenu, onFf, on
     setPressed(pr);
   };
   const state = useRef(new Map<number, { id: string; mask: number }>());
+  const stylusPtr = useRef(-1);
 
   const actions: Record<string, (on: boolean) => void> = { menu: on => on && onMenu(), ff: onFf, rewind: onRewind };
 
   const onDown = (e: PointerEvent) => {
     if (editing) return startDrag(e);
     const h = hit(e.clientX, e.clientY);
-    if (!h) return;
+    if (!h) {
+      if (onStylus) { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); stylusPtr.current = e.pointerId; onStylus(e.clientX, e.clientY, true); }
+      return;
+    }
     e.preventDefault();
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
     if (actions[h.id]) { actions[h.id](true); pointers.current.set(e.pointerId, h.id); setPressed(p => ({ ...p, [h.id]: 1 })); return; }
@@ -126,6 +134,7 @@ export function TouchControls({ system, input, editing, onDone, onMenu, onFf, on
   };
   const onMove = (e: PointerEvent) => {
     if (editing) return moveDrag(e);
+    if (stylusPtr.current === e.pointerId) { onStylus?.(e.clientX, e.clientY, true); return; }
     if (!state.current.has(e.pointerId)) return;
     const prev = state.current.get(e.pointerId)!;
     const h = hit(e.clientX, e.clientY);
@@ -148,6 +157,7 @@ export function TouchControls({ system, input, editing, onDone, onMenu, onFf, on
   };
   const onUp = (e: PointerEvent) => {
     if (editing) { drag.current = null; return; }
+    if (stylusPtr.current === e.pointerId) { stylusPtr.current = -1; onStylus?.(e.clientX, e.clientY, false); return; }
     const a = pointers.current.get(e.pointerId);
     if (a) { actions[a]?.(false); pointers.current.delete(e.pointerId); setPressed(p => { const n = { ...p }; delete n[a]; return n; }); return; }
     state.current.delete(e.pointerId);

@@ -14,6 +14,7 @@ export interface StartOptions {
   sram?: ArrayBuffer;
   state?: ArrayBuffer;
   options?: Record<string, string>;
+  systemFiles?: Record<string, ArrayBuffer>;
   display: DisplayOptions;
   volume: number;
   latencyMs: number;
@@ -52,6 +53,8 @@ export class Emulator {
   displayHz = 60;
   /** Called every animation frame; returns input masks per port. */
   pollInput: () => number[] = () => [0, 0, 0, 0];
+  /** Canvas-normalized stylus for touch-screen systems, or null. */
+  pollStylus: () => [number, number, number] | null = () => null;
 
   constructor(private canvas: HTMLCanvasElement, private ev: Events = {}) {}
 
@@ -90,7 +93,7 @@ export class Emulator {
       type: 'init', coreUrl: new URL(o.coreUrl, location.href).href, rom, fileName: o.fileName,
       canvas: offscreen, display: o.display,
       audio: { rate: this.ctx.sampleRate, latencyMs: o.latencyMs, sab, port, capacity: AUDIO_CAP },
-      options: o.options, sram: o.sram, state: o.state, rewind: o.rewind,
+      options: o.options, systemFiles: o.systemFiles, sram: o.sram, state: o.state, rewind: o.rewind,
     };
     const transfer: Transferable[] = [rom];
     if (offscreen) transfer.push(offscreen);
@@ -165,7 +168,7 @@ export class Emulator {
         this.deltas = [];
       }
     }
-    this.post({ type: 'tick', now, dt, inputs: this.pollInput(), vsync: fromRaf });
+    this.post({ type: 'tick', now, dt, inputs: this.pollInput(), vsync: fromRaf, stylus: this.pollStylus() ?? undefined });
   }
 
   private resize() {

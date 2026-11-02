@@ -35,7 +35,7 @@ self.onmessage = async (e: MessageEvent<ToWorker>) => {
   try {
     switch (m.type) {
       case 'init': await init(m); break;
-      case 'tick': tick(m.now, m.dt, m.inputs, m.vsync); break;
+      case 'tick': if (m.stylus) applyStylus(m.stylus); tick(m.now, m.dt, m.inputs, m.vsync); break;
       case 'set':
         if (m.speed !== undefined) { S.speed = m.speed; S.acc = 0; }
         if (m.paused !== undefined) { S.paused = m.paused; if (!m.paused) primeAudio(); }
@@ -94,6 +94,7 @@ async function init(m: Extract<ToWorker, { type: 'init' }>) {
   const factory = (await import(/* @vite-ignore */ m.coreUrl)).default;
   core = await Core.create(factory);
   for (const [k, v] of Object.entries(m.options ?? {})) core.setOption(k, v);
+  for (const [k, v] of Object.entries(m.systemFiles ?? {})) core.writeSystemFile(k, new Uint8Array(v));
   if (!core.load(new Uint8Array(m.rom), m.fileName)) throw new Error('This game could not be loaded by the ' + m.coreUrl.split('/').pop()?.replace('.mjs', '') + ' core.');
   if (m.sram) core.setSram(new Uint8Array(m.sram));
   S.sramCopy = core.sram()?.slice() ?? null;
@@ -192,6 +193,20 @@ function tick(now: number, dt: number, inputs: number[], vsync: boolean) {
   if (S.frame % 30 === 0) checkSram();
   finishTick(t0, now);
 }
+
+/** Canvas-relative stylus -> libretro pointer space over the emulated frame (local port 0). */
+let stylusState: [number, number, number] = [0, 0, 0];
+function applyStylus(s: [number, number, number]) {
+  stylusState = s;
+  if (!renderer) { core.setPointer(0, Math.round(s[0] * 65535 - 32768), Math.round(s[1] * 65535 - 32768), !!s[2]); return; }
+  const [vx, vy, vw, vh] = renderer.viewport();
+  const c = renderer.size();
+  const fx = (s[0] * c[0] - vx) / vw, fy = (s[1] * c[1] - vy) / vh;
+  const inside = fx >= 0 && fx <= 1 && fy >= 0 && fy <= 1;
+  const clamp = (v: number) => Math.max(-32767, Math.min(32767, Math.round(v * 65535 - 32768)));
+  core.setPointer(0, clamp(fx), clamp(fy), !!s[2] && inside);
+}
+void stylusState;
 
 function finishTick(t0: number, now: number) {
   S.workMs = S.workMs * 0.9 + (performance.now() - t0) * 0.1;

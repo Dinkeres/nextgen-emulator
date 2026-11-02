@@ -48,6 +48,8 @@ export class Core {
     });
   }
 
+  writeSystemFile(name: string, data: Uint8Array) { this.m.FS.writeFile('/system/' + name.replace(/[^\w.\-]/g, '_'), data); }
+
   load(rom: Uint8Array, fileName: string): boolean {
     const path = '/rom/' + fileName.replace(/[^\w.\-]/g, '_');
     this.m.FS.writeFile(path, rom);
@@ -86,6 +88,13 @@ export class Core {
   setInput(port: number, mask: number) { this.m.HEAPU16[(this.m._ng_joy() >> 1) + port] = mask; }
   setAnalog(port: number, stick: number, axis: number, v: number) {
     this.m.HEAP16[(this.m._ng_analog() >> 1) + port * 4 + stick * 2 + axis] = v;
+  }
+
+  /** Touch/pointer for a port; x,y in -0x7fff..0x7fff across the whole video frame. */
+  setPointer(port: number, x: number, y: number, pressed: boolean) {
+    if (!this.m._ng_pointer) return;
+    const p = (this.m._ng_pointer() >> 1) + port * 3;
+    this.m.HEAP16[p] = x; this.m.HEAP16[p + 1] = y; this.m.HEAP16[p + 2] = pressed ? 1 : 0;
   }
 
   frameReady(): boolean { return this.m._ng_frame_ready() === 1; }

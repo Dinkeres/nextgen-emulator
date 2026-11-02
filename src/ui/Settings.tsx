@@ -7,7 +7,8 @@ import { Renderer, type AspectMode, type ShaderId } from '../engine/renderer.ts'
 import { BTN, SYSTEMS, type ButtonName } from '../engine/systems.ts';
 import { DEFAULT_HOTKEYS, padKind, type Hotkey } from '../engine/input.ts';
 import { Confirm, Toggle, download, fmtBytes } from './common.tsx';
-import { speedLabel } from './Player.tsx';
+import { speedLabel, DS_LAYOUTS } from './Player.tsx';
+import { DS_BIOS_FILES } from '../app/session.ts';
 import type { Nav } from './App.tsx';
 
 type Section = 'video' | 'audio' | 'controls' | 'saves' | 'netplay' | 'advanced' | 'about';
@@ -121,6 +122,8 @@ function Video() {
       <Row title="Show performance stats" desc="FPS, frame time, audio buffer and rewind memory in the corner.">
         <Toggle on={s.showFps} onChange={v => set('video', { showFps: v })} label="Show stats" />
       </Row>
+      <Row title="Nintendo DS screens" desc="How the two DS screens are arranged. Changes apply instantly in game." />
+      <Chips value={useStore(settings).ds.layout} options={DS_LAYOUTS} onChange={v => updateSettings(x => ({ ...x, ds: { ...x.ds, layout: v } }))} />
       <Row title="Theme" desc="Dark is easier on the eyes in a dim room." />
       <Chips value={useStore(settings).theme} options={[['dark', 'Dark'], ['light', 'Light'], ['system', 'Match system']]} onChange={v => updateSettings(x => ({ ...x, theme: v }))} />
     </>
@@ -339,6 +342,7 @@ function Advanced() {
           ))}
         </div>
       ))}
+      <DsBios />
       <Row title="Reset all settings" desc="Restores defaults. Your games and saves are kept.">
         <button class="btn danger" onClick={() => { updateSettings(() => ({ ...DEFAULTS, welcomed: true })); toast('Settings reset', 'rotate', 'success'); }}>Reset</button>
       </Row>
@@ -357,6 +361,27 @@ function About() {
       {HOMEBREW.map(h => <Row key={h.file} title={h.title} desc={`${h.author} · ${h.license}`}><a class="btn ghost" href={h.url} target="_blank" rel="noopener">Source</a></Row>)}
       <Row title="Interface" desc="Outfit font (OFL-1.1) · Lucide icons (ISC) · Preact (MIT)" />
       <p style={{ color: 'var(--text-3)', marginTop: '20px' }}>Kaiser never downloads games for you. Only add games you own the rights to play.</p>
+    </>
+  );
+}
+
+function DsBios() {
+  const [have, setHave] = useState<Record<string, boolean>>({});
+  const refresh = async () => { const o: Record<string, boolean> = {}; for (const f of DS_BIOS_FILES) o[f] = !!(await db.kv('bios:' + f)); setHave(o); };
+  useEffect(() => { refresh(); }, []);
+  return (
+    <>
+      <div class="section-title"><h2 style={{ fontSize: '17px' }}>Nintendo DS BIOS (optional)</h2></div>
+      <p style={{ color: 'var(--text-3)', marginTop: '-6px' }}>Kaiser runs DS games with the built-in open-source FreeBIOS. A few games work better with dumps of your own console's BIOS and firmware. Files stay in this browser and are never uploaded.</p>
+      {DS_BIOS_FILES.map(f => (
+        <Row key={f} title={f} desc={have[f] ? 'Installed' : 'Not installed — using FreeBIOS'}>
+          <label class="btn"><Upload />{have[f] ? 'Replace' : 'Choose file'}<input type="file" hidden onChange={async e => {
+            const file = (e.target as HTMLInputElement).files?.[0]; if (!file) return;
+            await db.putKv('bios:' + f, file); refresh(); toast(`${f} installed`, 'check', 'success');
+          }} /></label>
+          {have[f] && <button class="btn icon ghost danger" aria-label={`Remove ${f}`} onClick={async () => { await db.putKv('bios:' + f, null); refresh(); }}><Trash2 /></button>}
+        </Row>
+      ))}
     </>
   );
 }

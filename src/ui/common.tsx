@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
 import type { ComponentChildren } from 'preact';
-import { Gamepad, Gamepad2, Joystick, Smartphone, X } from 'lucide-preact';
+import { Gamepad, Gamepad2, Joystick, Laptop, Smartphone, X } from 'lucide-preact';
 import { SYSTEMS } from '../engine/systems.ts';
 import type { Game } from '../app/db.ts';
 import { db } from '../app/db.ts';
 
 export const SYS_ICON: Record<string, typeof Gamepad> = {
-  nes: Gamepad, snes: Gamepad2, genesis: Joystick, gb: Smartphone, gbc: Smartphone, gba: Smartphone,
+  nes: Gamepad, snes: Gamepad2, genesis: Joystick, gb: Smartphone, gbc: Smartphone, gba: Smartphone, nds: Laptop,
 };
 
 export function useObjectURL(b?: Blob | null): string | undefined {

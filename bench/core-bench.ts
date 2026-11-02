@@ -20,6 +20,7 @@ const TESTS: { system: string; rom: string }[] = [
   { system: 'gbc', rom: 'public/homebrew/ucity.gbc' },
   { system: 'gba', rom: 'public/homebrew/240pee_mb.gba' },
   { system: 'genesis', rom: 'public/homebrew/sgdk-cube3d.gen' },
+  { system: 'nds', rom: 'bench/roms/Traffic_Escape_DS.nds' },
 ];
 
 const results: Record<string, unknown>[] = [];

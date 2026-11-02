@@ -486,3 +486,11 @@ main.page { padding: 24px var(--gutter) calc(48px + env(safe-area-inset-bottom))
 }
 :root[data-theme='light'] a { color: #0e7490; }
 .player { -webkit-touch-callout: none; }
+@media (orientation: portrait) {
+  .player.touch-mode.sys-nds canvas.screen { height: calc(66% - 96px - env(safe-area-inset-top)); }
+}
+/* DS: the lower screen is the touch screen — keep the toolbar off it */
+.player.sys-nds .hud.bottom { top: 0; bottom: auto; background: none; padding-top: calc(14px + env(safe-area-inset-top)); pointer-events: none; }
+.player.sys-nds .hud.bottom.hidden { transform: translateY(-10px); }
+.player.sys-nds .hud.top { padding-bottom: 40px; }
+@media (max-width: 1100px) { .player.sys-nds .hud.bottom .bar .opt { display: none; } }

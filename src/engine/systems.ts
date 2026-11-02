@@ -49,6 +49,11 @@ export const SYSTEMS: Record<string, SystemInfo> = {
     exts: ['gba'], color: '#4361ee',
     buttons: [...DPAD, 'B', 'A', 'L', 'R', 'SELECT', 'START'], rollback: false, maxPlayers: 1,
   },
+  nds: {
+    id: 'nds', name: 'Nintendo DS', short: 'DS', core: 'melonds',
+    exts: ['nds', 'dsi', 'ids', 'srl'], color: '#9aa4b1',
+    buttons: [...DPAD, 'Y', 'X', 'B', 'A', 'L', 'R', 'SELECT', 'START'], rollback: false, maxPlayers: 1,
+  },
   genesis: {
     id: 'genesis', name: 'Sega Genesis / Mega Drive', short: 'Genesis', core: 'genesis_plus_gx',
     exts: ['md', 'gen', 'smd', 'sms', 'gg', '32x'], color: '#1f8ef1',

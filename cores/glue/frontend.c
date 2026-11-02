@@ -87,6 +87,9 @@ API size_t ng_audio_frames(void) { return aframes; }
 #define PORTS 8
 static uint16_t joy[PORTS];
 static int16_t analog[PORTS][4];
+// pointer (touch screen): per port [x, y, pressed], x/y in libretro's -0x7fff..0x7fff frame space
+static int16_t ptr[PORTS][3];
+API int16_t *ng_pointer(void) { return &ptr[0][0]; }
 API uint16_t *ng_joy(void) { return joy; }
 API int16_t *ng_analog(void) { return &analog[0][0]; }
 
@@ -96,6 +99,13 @@ static int16_t input_state_cb(unsigned port, unsigned device, unsigned index, un
   if ((device & RETRO_DEVICE_MASK) == RETRO_DEVICE_JOYPAD) {
     if (id == RETRO_DEVICE_ID_JOYPAD_MASK) return (int16_t)joy[port];
     return id < 16 ? (joy[port] >> id) & 1 : 0;
+  }
+  if ((device & RETRO_DEVICE_MASK) == RETRO_DEVICE_POINTER && index == 0) {
+    if (id == RETRO_DEVICE_ID_POINTER_X) return ptr[port][0];
+    if (id == RETRO_DEVICE_ID_POINTER_Y) return ptr[port][1];
+    if (id == RETRO_DEVICE_ID_POINTER_PRESSED) return ptr[port][2];
+    if (id == RETRO_DEVICE_ID_POINTER_COUNT) return ptr[port][2] ? 1 : 0;
+    return 0;
   }
   if ((device & RETRO_DEVICE_MASK) == RETRO_DEVICE_ANALOG && index < 2 && id < 2)
     return analog[port][index * 2 + id];

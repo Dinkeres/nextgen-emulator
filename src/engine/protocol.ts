@@ -13,9 +13,12 @@ export type ToWorker =
       canvas?: OffscreenCanvas; display?: Partial<DisplayOptions>;
       audio: { rate: number; latencyMs?: number; sab?: { data: SharedArrayBuffer; ctl: SharedArrayBuffer }; port?: MessagePort; capacity: number };
       options?: Record<string, string>; sram?: ArrayBuffer; state?: ArrayBuffer;
+      /** user-supplied BIOS/firmware written to /system before the game loads */
+      systemFiles?: Record<string, ArrayBuffer>;
       rewind?: { enabled: boolean; seconds: number; budgetMB: number };
     }
-  | { type: 'tick'; now: number; dt: number; inputs: number[]; vsync: boolean }
+  /** stylus: [x, y, down] normalized to the canvas (0..1), for touch-screen systems */
+  | { type: 'tick'; now: number; dt: number; inputs: number[]; vsync: boolean; stylus?: [number, number, number] }
   | {
       type: 'set'; speed?: number; paused?: boolean; rewinding?: boolean; ffAudio?: FFAudio; volume?: number;
       displayHz?: number; vsyncLock?: boolean; display?: Partial<DisplayOptions>;

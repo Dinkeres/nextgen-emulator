@@ -4,9 +4,23 @@ import { SYSTEMS } from '../engine/systems.ts';
 import type { Stats } from '../engine/protocol.ts';
 import { db, type Game } from './db.ts';
 import { romFor } from './library.ts';
-import { effective, settings, toast, refreshLibrary } from './store.ts';
+import { effective, settings, toast, refreshLibrary, type Settings } from './store.ts';
 
 export const AUTO_SLOT = 0;
+
+/** Options a system always needs from us (e.g. DS touch through the pointer device). */
+export function systemOptions(system: string, cfg: Settings): Record<string, string> {
+  if (system === 'nds') return { melonds_touch_mode: 'Touch', melonds_screen_layout: cfg.ds.layout, melonds_screen_gap: '0' };
+  return {};
+}
+
+export const DS_BIOS_FILES = ['bios7.bin', 'bios9.bin', 'firmware.bin'];
+/** User-provided DS BIOS/firmware (optional; melonDS uses FreeBIOS otherwise). */
+async function dsBios(): Promise<Record<string, ArrayBuffer> | undefined> {
+  const out: Record<string, ArrayBuffer> = {};
+  for (const f of DS_BIOS_FILES) { const b = await db.kv<Blob>('bios:' + f); if (b) out[f] = await b.arrayBuffer(); }
+  return Object.keys(out).length ? out : undefined;
+}
 export const SLOTS = 10;
 
 export class Session {
@@ -50,7 +64,8 @@ export class Session {
       coreUrl: `${import.meta.env.BASE_URL}cores/${sys.core}.mjs`,
       rom, fileName: this.game.fileName,
       sram: sram ? (sram.slice().buffer as ArrayBuffer) : undefined, state,
-      options: opts.netplay ? undefined : cfg.coreOptions[sys.core],
+      options: { ...(opts.netplay ? {} : cfg.coreOptions[sys.core]), ...systemOptions(sys.id, cfg) },
+      systemFiles: sys.id === 'nds' ? await dsBios() : undefined,
       display: { shader: cfg.video.shader, aspect: cfg.video.aspect, integer: cfg.video.integer },
       volume: cfg.audio.muted ? 0 : cfg.audio.volume,
       latencyMs: cfg.audio.latencyMs,

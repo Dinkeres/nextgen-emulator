@@ -36,6 +36,8 @@ export class Input {
   pad: PadBindings = DEFAULT_PAD;
   touch = 0;               // bits from the on-screen controls (port 0)
   latched = 0;             // presses since the last poll (keyboard + touch taps)
+  /** stylus on a touch-screen system: [x, y, down] normalized to the canvas */
+  stylus: [number, number, number] = [0, 0, 0];
   private down = new Set<string>();
   private keyMap = new Map<string, number>();
   /** set while a remap screen is listening, so game input doesn't fire */

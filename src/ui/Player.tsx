@@ -5,8 +5,8 @@ import {
 } from 'lucide-preact';
 import type { Game, SaveState } from '../app/db.ts';
 import { db } from '../app/db.ts';
-import { Session, SLOTS } from '../app/session.ts';
-import { settings, toast, updateSettings, useStore, effective } from '../app/store.ts';
+import { Session, SLOTS, systemOptions } from '../app/session.ts';
+import { settings, toast, updateSettings, useStore, effective, type DSLayout } from '../app/store.ts';
 import { Input } from '../engine/input.ts';
 import { SYSTEMS, BTN } from '../engine/systems.ts';
 import type { Stats } from '../engine/protocol.ts';
@@ -42,6 +42,13 @@ export function Player({ game, slot, fresh, nav, net }: { game: Game; slot?: num
   const [fs, setFs] = useState(!!document.fullscreenElement);
   const [editTouch, setEditTouch] = useState(false);
   const lastSlot = useRef(1);
+  const mouseStylus = useRef(false);
+  /** client coords -> canvas-normalized stylus for touch-screen systems */
+  const stylus = (cx: number, cy: number, down: boolean) => {
+    const r = canvasRef.current?.getBoundingClientRect();
+    if (!r) return;
+    input.stylus = [(cx - r.left) / r.width, (cy - r.top) / r.height, down ? 1 : 0];
+  };
   const ui = useRef({ menu, panel, editTouch });
   ui.current = { menu, panel, editTouch };
   const touchMode = cfg.controls.touch === 'on' || (cfg.controls.touch === 'auto' && matchMedia('(pointer: coarse)').matches);
@@ -56,6 +63,7 @@ export function Player({ game, slot, fresh, nav, net }: { game: Game; slot?: num
     sess.onError = m => toast(m, 'alert', 'error', 5000);
     input.keys = cfg.controls.keys; input.pad = cfg.controls.pad; input.rebuild();
     sess.emu.pollInput = () => input.poll();
+    if (sys.id === 'nds') sess.emu.pollStylus = () => input.stylus;
     (async () => {
       try {
         if (net) await net.attach(sess, input); else await sess.start({ slot, fresh });
@@ -74,11 +82,12 @@ export function Player({ game, slot, fresh, nav, net }: { game: Game; slot?: num
     if (phase !== 'playing') return;
     sess().emu.set({
       display: { shader: cfg.video.shader, aspect: cfg.video.aspect, integer: cfg.video.integer },
+      options: systemOptions(game.system, cfg),
       volume: cfg.audio.muted ? 0 : cfg.audio.volume, ffAudio: cfg.audio.ffAudio, vsyncLock: cfg.video.vsyncLock,
       rewind: { enabled: cfg.speed.rewind, seconds: cfg.speed.rewindSeconds, budgetMB: navigator.maxTouchPoints > 0 ? 48 : 128 },
     });
     sess().scheduleAuto();
-  }, [phase, JSON.stringify([cfg.video, cfg.audio, cfg.speed, cfg.saves.autoSaveMinutes])]);
+  }, [phase, JSON.stringify([cfg.video, cfg.audio, cfg.speed, cfg.saves.autoSaveMinutes, cfg.ds])]);
 
   // speed changes
   useEffect(() => {
@@ -204,10 +213,15 @@ export function Player({ game, slot, fresh, nav, net }: { game: Game; slot?: num
   const netStats = stats?.net;
 
   return (
-    <div class={`player ${hud || menu ? '' : 'hide-cursor'} ${touchMode && !menu ? 'touch-mode' : ''}`} ref={rootRef} style={{ '--sys': sys.color }}
+    <div class={`player ${hud || menu ? '' : 'hide-cursor'} ${touchMode && !menu ? 'touch-mode' : ''} sys-${sys.id}`} ref={rootRef} style={{ '--sys': sys.color }}
       onContextMenu={e => e.preventDefault()}
-      onPointerMove={e => { if (e.pointerType === 'mouse') poke(); }}
-      onPointerDown={e => { if (!(e.target as HTMLElement).closest('.tbtn, .dpad, .hud, .pause')) poke(); }}>
+      onPointerMove={e => { if (e.pointerType === 'mouse') { poke(); if (mouseStylus.current) stylus(e.clientX, e.clientY, true); } }}
+      onPointerDown={e => {
+        if (!(e.target as HTMLElement).closest('.tbtn, .dpad, .hud, .pause')) poke();
+        // DS: mouse clicks on the game screen are stylus touches
+        if (sys.id === 'nds' && e.pointerType === 'mouse' && e.target === canvasRef.current) { mouseStylus.current = true; stylus(e.clientX, e.clientY, true); }
+      }}
+      onPointerUp={e => { if (mouseStylus.current) { mouseStylus.current = false; stylus(e.clientX, e.clientY, false); } }}>
       <canvas class="screen" ref={canvasRef} aria-label={`${game.title} game screen`} />
 
       {phase === 'loading' && (
@@ -233,6 +247,7 @@ export function Player({ game, slot, fresh, nav, net }: { game: Game; slot?: num
         {net && netStats && <NetOverlay stats={netStats} names={net.names()} />}
 
         {touchMode && !menu && <TouchControls system={sys} input={input} editing={editTouch} onDone={() => setEditTouch(false)}
+          onStylus={sys.id === 'nds' ? stylus : undefined} split={sys.id === 'nds' ? 0.66 : 0.55}
           onMenu={() => setMenu(true)} onFf={on => setSpeedFf(cfg.speed.ffMode === 'hold' ? on : on ? !ff : ff)} onRewind={on => !net && setRew(on)} />}
 
         {!menu && !editTouch && <>
@@ -335,6 +350,10 @@ function QuickSettings({ game }: { game: Game }) {
         <div class="ctl"><input class="range" type="range" min="0" max="1" step="0.05" value={s.audio.volume} onInput={e => set('audio', { volume: +(e.target as HTMLInputElement).value, muted: false })} aria-label="Volume" /></div></div>
       <div class="setting"><div class="lbl"><b>Fast-forward speed</b></div></div>
       <div class="opts">{[2, 3, 4, 8, 100].map(v => <button key={v} class={`chip ${s.speed.ffSpeed === v ? 'on' : ''}`} onClick={() => set('speed', { ffSpeed: v })}>{speedLabel(v)}</button>)}</div>
+      {game.system === 'nds' && <>
+        <div class="setting"><div class="lbl"><b>DS screens</b><small>How the two screens are arranged.</small></div></div>
+        <div class="opts">{DS_LAYOUTS.map(([id, l]) => <button key={id} class={`chip ${s.ds.layout === id ? 'on' : ''}`} onClick={() => updateSettings(x => ({ ...x, ds: { ...x.ds, layout: id } }))}>{l}</button>)}</div>
+      </>}
       <div class="setting"><div class="lbl"><b>Show performance stats</b></div>
         <div class="ctl"><button class={`toggle ${s.video.showFps ? 'on' : ''}`} role="switch" aria-checked={s.video.showFps} aria-label="Show stats" onClick={() => set('video', { showFps: !s.video.showFps })} /></div></div>
     </div>
@@ -370,6 +389,8 @@ function NetOverlay({ stats, names }: { stats: NonNullable<Stats['net']>; names:
     </div>
   );
 }
+
+export const DS_LAYOUTS: [DSLayout, string][] = [['Top/Bottom', 'Stacked'], ['Left/Right', 'Side by side'], ['Hybrid Top', 'Big top screen'], ['Hybrid Bottom', 'Big touch screen']];
 
 export const speedLabel = (v: number) => v >= 100 ? 'Max' : `${v}×`;
 

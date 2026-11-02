@@ -16,7 +16,10 @@ export interface Settings {
   controls: { keys: KeyBindings; pad: PadBindings; hotkeys: Record<Hotkey, string>; touch: 'auto' | 'on' | 'off'; touchOpacity: number; haptics: boolean };
   netplay: { name: string; signalUrl: string; inputDelay: number | 'auto'; maxRollback: number };
   coreOptions: Record<string, Record<string, string>>; // per core
+  ds: { layout: DSLayout };
 }
+
+export type DSLayout = 'Top/Bottom' | 'Left/Right' | 'Hybrid Top' | 'Hybrid Bottom';
 
 const isMobile = typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches;
 
@@ -29,6 +32,7 @@ export const DEFAULTS: Settings = {
   controls: { keys: DEFAULT_KEYS, pad: DEFAULT_PAD, hotkeys: DEFAULT_HOTKEYS, touch: 'auto', touchOpacity: 0.55, haptics: true },
   netplay: { name: '', signalUrl: 'ws://localhost:8787', inputDelay: 'auto', maxRollback: 8 },
   coreOptions: {},
+  ds: { layout: 'Top/Bottom' },
 };
 
 /** Sections a game may override. */

@@ -68,6 +68,11 @@ core() {
         -DBUILD_GLES2=OFF -DBUILD_GLES3=OFF -DUSE_PTHREADS=OFF -DDISABLE_THREADING=ON >"$HERE/../.build-mgba.log" 2>&1
       emmake make -j$J mgba_libretro >>"$HERE/../.build-mgba.log" 2>&1 || { tail -30 "$HERE/../.build-mgba.log"; return 1; }
       link mgba "$PWD/mgba_libretro.bc";;
+    # melonDS's emscripten target links a wasm side module; archive its objects instead
+    melonds)  build_make melonDS Makefile melonds_libretro_emscripten.bc HAVE_OPENGL=0 HAVE_THREADS=0 >/dev/null || return 1
+              (cd "$SRC/melonDS" && rm -f /tmp/melonds-objs.a && find . -name '*.o' -print0 | xargs -0 emar rcs /tmp/melonds-objs.a)
+              link melonds /tmp/melonds-objs.a;;
+    desmume2015) link desmume2015 "$(build_make desmume2015/desmume Makefile.libretro desmume2015_libretro_emscripten.bc)";;
     *) echo "unknown core $1"; return 1;;
   esac
 }
