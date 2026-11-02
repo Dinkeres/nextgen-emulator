@@ -10,7 +10,7 @@ export interface TItem { id: string; kind: 'dpad' | 'btn' | 'pill' | 'shoulder' 
 const face = (sys: SystemInfo): TItem[] => {
   const btn = (b: ButtonName, x: number, y: number, s = 0.16): TItem => ({ id: b, kind: 'btn', b, x, y, s, label: buttonLabel(sys, b) });
   switch (sys.id) {
-    case 'snes': return [btn('X', 0.86, 0.48), btn('A', 0.93, 0.63), btn('B', 0.86, 0.78), btn('Y', 0.79, 0.63)];
+    case 'snes': return [btn('X', 0.855, 0.47, 0.135), btn('A', 0.935, 0.63, 0.135), btn('B', 0.855, 0.79, 0.135), btn('Y', 0.775, 0.63, 0.135)];
     case 'genesis': return [btn('Y', 0.72, 0.74, 0.15), btn('B', 0.82, 0.70, 0.15), btn('A', 0.92, 0.66, 0.15),
       btn('L', 0.74, 0.52, 0.11), btn('X', 0.83, 0.48, 0.11), btn('R', 0.92, 0.44, 0.11)];
     default: return [btn('B', 0.80, 0.72, 0.17), btn('A', 0.92, 0.62, 0.17)];
@@ -56,14 +56,21 @@ export function TouchControls({ system, input, editing, onDone, onMenu, onFf, on
   const portrait = vw.h > vw.w;
   // sizes scale with the screen but stop growing on tablets (thumbs don't get bigger)
   const unit = Math.min(short, 430);
+  // Layout space -> screen: each control is anchored to its nearest edge (or the centre) in
+  // units of the control size, so clusters stay compact and evenly spaced on any screen.
+  // Portrait puts everything in the area under the game screen.
+  const region = portrait ? { y0: vw.h * 0.55, h: vw.h * 0.45 } : { y0: 0, h: vw.h };
+  const wr = Math.min(vw.w, unit * 1.9), hr = Math.min(region.h, unit * 0.95);
+  const toX = (x: number) => Math.abs(x - 0.5) < 0.15 ? vw.w / 2 + (x - 0.5) * wr : x < 0.5 ? x * wr : vw.w - (1 - x) * wr;
+  const toY = (y: number) => y < 0.4 ? region.y0 + y * hr : region.y0 + region.h - (1 - y) * hr;
+  const fromX = (px: number) => Math.abs(px - vw.w / 2) < 0.15 * wr ? 0.5 + (px - vw.w / 2) / wr : px < vw.w / 2 ? px / wr : 1 - (vw.w - px) / wr;
+  const fromY = (py: number) => py - region.y0 < 0.4 * hr ? (py - region.y0) / hr : 1 - (region.y0 + region.h - py) / hr;
   const pos = (it: TItem) => {
-    let y = it.y;
-    if (portrait && it.kind !== 'action') y = 0.55 + it.y * 0.45;
     const size = it.s * unit;
     const half = (it.kind === 'pill' ? size * 1.2 : it.kind === 'shoulder' ? size * 0.9 : size / 2) + 6;
     // keep every control fully on screen whatever the aspect ratio
-    const left = Math.min(vw.w - half, Math.max(half, it.x * vw.w));
-    const top = Math.min(vw.h - size / 2 - 6, Math.max(size / 2 + 6, y * vw.h));
+    const left = Math.min(vw.w - half, Math.max(half, toX(it.x)));
+    const top = Math.min(vw.h - size / 2 - 6, Math.max(size / 2 + 6, toY(it.y)));
     return { left, top, size };
   };
 
@@ -161,10 +168,8 @@ export function TouchControls({ system, input, editing, onDone, onMenu, onFf, on
   };
   const moveDrag = (e: PointerEvent) => {
     const d = drag.current; if (!d) return;
-    const x = Math.min(0.98, Math.max(0.02, (e.clientX - d.dx) / vw.w));
-    let y = Math.min(0.98, Math.max(0.02, (e.clientY - d.dy) / vw.h));
-    const it = items.find(i => i.id === d.id)!;
-    if (portrait && it.kind !== 'action') y = Math.min(1, Math.max(0, (y - 0.55) / 0.45));
+    const x = Math.min(0.98, Math.max(0.02, fromX(e.clientX - d.dx)));
+    const y = Math.min(0.98, Math.max(0.02, fromY(e.clientY - d.dy)));
     setItems(l => l.map(i => i.id === d.id ? { ...i, x, y } : i));
   };
   const resize = (k: number) => sel && setItems(l => l.map(i => i.id === sel ? { ...i, s: Math.min(0.6, Math.max(0.05, i.s * k)) } : i));
