@@ -1,5 +1,5 @@
 // Keyboard + Gamepad + touch input -> per-port libretro joypad bitmasks.
-import { BTN, type ButtonName } from './systems';
+import { BTN, type ButtonName } from './systems.ts';
 
 export type KeyBindings = Partial<Record<ButtonName, string[]>>;   // KeyboardEvent.code
 export type PadBindings = Partial<Record<ButtonName, number[]>>;   // standard-mapping button index

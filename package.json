@@ -8,9 +8,12 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
-    "test": "node --test --experimental-strip-types tests/*.test.ts",
+    "test": "node --test --experimental-strip-types tests/unit.test.ts tests/determinism.test.ts",
     "bench": "node --experimental-strip-types bench/core-bench.ts",
-    "signal": "node server/signal.mjs"
+    "signal": "node server/signal.mjs",
+    "test:netplay": "node --test --experimental-strip-types tests/rollback.test.ts",
+    "screenshots": "node bench/screenshots.mjs",
+    "bench:browser": "node bench/browser-bench.mjs"
   },
   "dependencies": {
     "@fontsource-variable/outfit": "^5.3.0",
@@ -21,6 +24,7 @@
     "@preact/preset-vite": "^2.10.6",
     "@types/node": "^26.6.6",
     "fake-indexeddb": "^6.2.7",
+    "playwright": "^1.64.1",
     "typescript": "^7.0.2",
     "vite": "^8.3.5",
     "ws": "^8.22.1"

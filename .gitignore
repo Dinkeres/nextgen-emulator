@@ -48,3 +48,4 @@ BIOS/
 !server/*.md
 !public/homebrew/*
 bench/roms/
+bench/basecores/

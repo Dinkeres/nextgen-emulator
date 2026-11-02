@@ -13,7 +13,10 @@ export interface Game {
   cover?: Blob;          // user-provided art only
   bundled?: boolean;     // shipped homebrew (ROM fetched from /homebrew, not stored)
   settings?: Record<string, unknown>; // per-game overrides
+  cheats?: Cheat[];
 }
+
+export interface Cheat { code: string; desc: string; on: boolean }
 
 export interface SaveState {
   id: string;            // `${gameId}:${slot}`
@@ -171,7 +174,7 @@ export async function exportBackup(gameId?: string, includeRoms = false): Promis
 export async function importBackup(file: Blob): Promise<number> {
   const text = await new Response(file.stream().pipeThrough(new DecompressionStream('gzip'))).text();
   const data = JSON.parse(text);
-  if (data?.format !== 'nextgen-emulator-backup') throw new Error('This file is not a NextGen Emulator backup.');
+  if (data?.format !== 'nextgen-emulator-backup') throw new Error('This file is not a Kaiser backup.');
   let n = 0;
   for (const e of data.games) {
     const g = e.game as Game & { cover?: string };

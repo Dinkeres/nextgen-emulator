@@ -1,10 +1,10 @@
 import { render } from 'preact';
 import './ui/styles.css';
-import { App } from './ui/App';
-import { loadSettings, refreshLibrary } from './app/store';
-import { ensureHomebrew } from './app/library';
-import { persist } from './app/db';
-import { installNav } from './ui/nav';
+import { App } from './ui/App.tsx';
+import { loadSettings, refreshLibrary } from './app/store.ts';
+import { ensureHomebrew } from './app/library.ts';
+import { persist } from './app/db.ts';
+import { installNav } from './ui/nav.ts';
 
 declare const __BUILD__: string;
 

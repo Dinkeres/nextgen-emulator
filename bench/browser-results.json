@@ -1,0 +1,188 @@
+[
+  {
+    "engine": "ejs",
+    "sys": "nes",
+    "coldLoadMs": 732,
+    "warmLoadMs": 439,
+    "fps": 60,
+    "p99": 18.1,
+    "low1": 55.2,
+    "jitter": 0.65,
+    "late": 0,
+    "maxFps": 2155,
+    "wasmMB": 128,
+    "pageErrors": [
+      "Wake Lock permission request denied",
+      "Wake Lock permission request denied"
+    ]
+  },
+  {
+    "engine": "kaiser",
+    "sys": "nes",
+    "coldLoadMs": 63,
+    "warmLoadMs": 46,
+    "fps": 60,
+    "p99": 18.4,
+    "low1": 54.3,
+    "jitter": 0.69,
+    "late": 0,
+    "underruns": 0,
+    "maxFps": 2689,
+    "wasmMB": 64
+  },
+  {
+    "engine": "ejs",
+    "sys": "snes",
+    "coldLoadMs": 1518,
+    "warmLoadMs": 542,
+    "fps": 60,
+    "p99": 18.2,
+    "low1": 54.9,
+    "jitter": 0.68,
+    "late": 0,
+    "maxFps": 1211,
+    "wasmMB": 128,
+    "pageErrors": [
+      "Wake Lock permission request denied",
+      "Wake Lock permission request denied"
+    ]
+  },
+  {
+    "engine": "kaiser",
+    "sys": "snes",
+    "coldLoadMs": 72,
+    "warmLoadMs": 68,
+    "fps": 60,
+    "p99": 18.6,
+    "low1": 53.7,
+    "jitter": 0.95,
+    "late": 0,
+    "underruns": 0,
+    "maxFps": 2291,
+    "wasmMB": 64
+  },
+  {
+    "engine": "ejs",
+    "sys": "gb",
+    "coldLoadMs": 1428,
+    "warmLoadMs": 436,
+    "fps": 60,
+    "p99": 18.2,
+    "low1": 54.9,
+    "jitter": 0.67,
+    "late": 0,
+    "maxFps": 7057,
+    "wasmMB": 128,
+    "pageErrors": [
+      "Wake Lock permission request denied",
+      "Wake Lock permission request denied"
+    ]
+  },
+  {
+    "engine": "kaiser",
+    "sys": "gb",
+    "coldLoadMs": 49,
+    "warmLoadMs": 39,
+    "fps": 60,
+    "p99": 18.3,
+    "low1": 54.6,
+    "jitter": 0.69,
+    "late": 0,
+    "underruns": 0,
+    "maxFps": 8428,
+    "wasmMB": 64
+  },
+  {
+    "engine": "ejs",
+    "sys": "gbc",
+    "coldLoadMs": 668,
+    "warmLoadMs": 448,
+    "fps": 60,
+    "p99": 18.2,
+    "low1": 54.9,
+    "jitter": 0.71,
+    "late": 0,
+    "maxFps": 4321,
+    "wasmMB": 128,
+    "pageErrors": [
+      "Wake Lock permission request denied",
+      "Wake Lock permission request denied"
+    ]
+  },
+  {
+    "engine": "kaiser",
+    "sys": "gbc",
+    "coldLoadMs": 50,
+    "warmLoadMs": 40,
+    "fps": 60,
+    "p99": 18.4,
+    "low1": 54.3,
+    "jitter": 0.66,
+    "late": 0,
+    "underruns": 0,
+    "maxFps": 6879,
+    "wasmMB": 64
+  },
+  {
+    "engine": "ejs",
+    "sys": "gba",
+    "coldLoadMs": 1451,
+    "warmLoadMs": 474,
+    "fps": 60,
+    "p99": 18.3,
+    "low1": 54.6,
+    "jitter": 0.7,
+    "late": 0,
+    "maxFps": 1189,
+    "wasmMB": 128,
+    "pageErrors": [
+      "Wake Lock permission request denied",
+      "Wake Lock permission request denied"
+    ]
+  },
+  {
+    "engine": "kaiser",
+    "sys": "gba",
+    "coldLoadMs": 53,
+    "warmLoadMs": 41,
+    "fps": 60,
+    "p99": 19,
+    "low1": 52.5,
+    "jitter": 0.89,
+    "late": 0,
+    "underruns": 0,
+    "maxFps": 15392,
+    "wasmMB": 64
+  },
+  {
+    "engine": "ejs",
+    "sys": "genesis",
+    "coldLoadMs": 1490,
+    "warmLoadMs": 456,
+    "fps": 60,
+    "p99": 18.3,
+    "low1": 54.6,
+    "jitter": 0.66,
+    "late": 0,
+    "maxFps": 1288,
+    "wasmMB": 512,
+    "pageErrors": [
+      "Wake Lock permission request denied",
+      "Wake Lock permission request denied"
+    ]
+  },
+  {
+    "engine": "kaiser",
+    "sys": "genesis",
+    "coldLoadMs": 59,
+    "warmLoadMs": 47,
+    "fps": 60,
+    "p99": 19,
+    "low1": 52.7,
+    "jitter": 1.22,
+    "late": 0,
+    "underruns": 0,
+    "maxFps": 1833,
+    "wasmMB": 64
+  }
+]

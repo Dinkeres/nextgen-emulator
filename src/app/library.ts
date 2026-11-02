@@ -1,7 +1,7 @@
 // Adding games (local files stay in the browser) and the bundled, freely licensed homebrew.
-import { db, sha256, type Game } from './db';
-import { refreshLibrary, toast } from './store';
-import { SYSTEMS, systemForFile } from '../engine/systems';
+import { db, sha256, type Game } from './db.ts';
+import { refreshLibrary, toast } from './store.ts';
+import { SYSTEMS, systemForFile } from '../engine/systems.ts';
 
 export interface Homebrew { file: string; title: string; system: string; author: string; license: string; url: string; blurb: string }
 

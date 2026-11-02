@@ -1,7 +1,7 @@
 // Messages between the main thread (Emulator) and the emulation worker.
-import type { AVInfo } from './core';
-import type { DisplayOptions } from './renderer';
-import type { NetMsg, NetStats } from '../net/rollback';
+import type { AVInfo } from './core.ts';
+import type { DisplayOptions } from './renderer.ts';
+import type { NetMsg, NetStats } from '../net/rollback.ts';
 
 export type FFAudio = 'mute' | 'pitch' | 'stretch';
 
@@ -30,7 +30,9 @@ export type ToWorker =
   | { type: 'net'; msg: NetMsg }
   | { type: 'netStart'; localPort: number; players: number[]; inputDelay: number; maxRollback: number; state?: ArrayBuffer }
   | { type: 'netStop' }
-  | { type: 'netResync' };
+  | { type: 'netResync' }
+  | { type: 'bench'; id: number; ms: number }
+  | { type: 'timings'; id: number };
 
 export interface Stats {
   emuFps: number; fps: number; workMs: number; audioFill: number; underruns: number;
@@ -47,4 +49,6 @@ export type FromWorker =
   | { type: 'frame'; data: Uint8Array; width: number; height: number; aspect: number }
   | { type: 'net'; msg: NetMsg }
   | { type: 'netEvent'; event: 'desync'; frame: number }
-  | { type: 'error'; message: string };
+  | { type: 'error'; message: string }
+  | { type: 'bench'; id: number; frames: number; ms: number }
+  | { type: 'timings'; id: number; t: Float64Array };

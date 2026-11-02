@@ -1,15 +1,16 @@
 import { useEffect, useState } from 'preact/hooks';
 import { Download, Heart, ImagePlus, Pencil, Play, RotateCcw, Save, Trash2, Users, X } from 'lucide-preact';
-import { db, exportBackup, type Game, type SaveState, type Shot } from '../app/db';
-import { refreshLibrary, settings, toast, useStore } from '../app/store';
-import { HOMEBREW } from '../app/library';
-import { SYSTEMS } from '../engine/systems';
-import { Confirm, Cover, Modal, SysBadge, download, fmtAgo, fmtBytes, fmtTime, useObjectURL } from './common';
-import { GameOverrides } from './Settings';
-import type { Nav } from './App';
+import { db, exportBackup, type Game, type SaveState, type Shot } from '../app/db.ts';
+import { refreshLibrary, settings, toast, useStore } from '../app/store.ts';
+import { HOMEBREW } from '../app/library.ts';
+import { SYSTEMS } from '../engine/systems.ts';
+import { Confirm, Cover, Modal, SysBadge, download, fmtAgo, fmtBytes, fmtTime, useObjectURL } from './common.tsx';
+import { GameOverrides } from './Settings.tsx';
+import { Cheats } from './Cheats.tsx';
+import type { Nav } from './App.tsx';
 
 export function GameDetails({ game, onClose, nav }: { game: Game; onClose: () => void; nav: Nav }) {
-  const [tab, setTab] = useState<'saves' | 'shots' | 'settings' | 'manage'>('saves');
+  const [tab, setTab] = useState<'saves' | 'shots' | 'settings' | 'cheats' | 'manage'>('saves');
   const [states, setStates] = useState<SaveState[]>([]);
   const [shots, setShots] = useState<Shot[]>([]);
   const [confirm, setConfirm] = useState<null | { title: string; text: string; yes: () => void }>(null);
@@ -31,15 +32,15 @@ export function GameDetails({ game, onClose, nav }: { game: Game; onClose: () =>
         <div>
           <div class="cover-lg"><Cover game={game} /></div>
         </div>
-        <div style={{ minWidth: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div style={{ minWidth: '0px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <SysBadge system={game.system} />
-            <span style={{ color: 'var(--text-3)', fontSize: 13 }}>{sys?.name}</span>
+            <span style={{ color: 'var(--text-3)', fontSize: '13px' }}>{sys?.name}</span>
             <button class="btn icon ghost" style={{ marginLeft: 'auto' }} onClick={onClose} aria-label="Close"><X /></button>
           </div>
           {renaming ? (
-            <form onSubmit={e => { e.preventDefault(); const v = (e.currentTarget.elements.namedItem('t') as HTMLInputElement).value.trim(); if (v) update({ title: v }); setRenaming(false); }} style={{ display: 'flex', gap: 8, margin: '10px 0' }}>
-              <input class="input" name="t" defaultValue={game.title} style={{ flex: 1, fontSize: 18 }} data-autofocus />
+            <form onSubmit={e => { e.preventDefault(); const v = (e.currentTarget.elements.namedItem('t') as HTMLInputElement).value.trim(); if (v) update({ title: v }); setRenaming(false); }} style={{ display: 'flex', gap: '8px', margin: '10px 0' }}>
+              <input class="input" name="t" defaultValue={game.title} style={{ flex: 1, fontSize: '18px' }} data-autofocus />
               <button class="btn primary">Save</button>
             </form>
           ) : <h1>{game.title}</h1>}
@@ -60,9 +61,9 @@ export function GameDetails({ game, onClose, nav }: { game: Game; onClose: () =>
           </div>
 
           <div class="tabs" role="tablist">
-            {(['saves', 'shots', 'settings', 'manage'] as const).map(t => (
+            {(['saves', 'shots', 'settings', 'cheats', 'manage'] as const).map(t => (
               <button key={t} role="tab" aria-selected={tab === t} class={tab === t ? 'on' : ''} onClick={() => setTab(t)}>
-                {{ saves: 'Save states', shots: `Screenshots${shots.length ? ` (${shots.length})` : ''}`, settings: 'Game settings', manage: 'Manage' }[t]}
+                {{ saves: 'Save states', shots: `Screenshots${shots.length ? ` (${shots.length})` : ''}`, settings: 'Game settings', cheats: `Cheats${game.cheats?.length ? ` (${game.cheats.length})` : ''}`, manage: 'Manage' }[t]}
               </button>
             ))}
           </div>
@@ -80,9 +81,10 @@ export function GameDetails({ game, onClose, nav }: { game: Game; onClose: () =>
           )}
 
           {tab === 'settings' && <GameOverrides game={game} />}
+          {tab === 'cheats' && <Cheats game={game} />}
 
           {tab === 'manage' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, alignItems: 'flex-start' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', alignItems: 'flex-start' }}>
               <button class="btn" onClick={() => setRenaming(true)}><Pencil />Rename</button>
               <label class="btn"><ImagePlus />{game.cover ? 'Change cover art' : 'Add cover art'}
                 <input type="file" accept="image/*" hidden onChange={async e => { const f = (e.target as HTMLInputElement).files?.[0]; if (f) { await update({ cover: f }); toast('Cover updated', 'image', 'success'); } }} />

@@ -1,12 +1,12 @@
 import { useMemo, useState } from 'preact/hooks';
 import { Clock, Grid2x2, Heart, List, Play, Plus, Search, Settings as Gear, Sparkles, Star, Upload, Users } from 'lucide-preact';
-import { library, settings, updateSettings, useStore } from '../app/store';
-import { addFiles, pickFiles } from '../app/library';
-import { SYSTEMS } from '../engine/systems';
-import type { Game } from '../app/db';
-import { Cover, SysBadge, fmtAgo, fmtTime, useAutoThumb, useObjectURL } from './common';
-import { GameDetails } from './GameDetails';
-import type { Nav } from './App';
+import { library, settings, updateSettings, useStore } from '../app/store.ts';
+import { addFiles, pickFiles } from '../app/library.ts';
+import { SYSTEMS } from '../engine/systems.ts';
+import type { Game } from '../app/db.ts';
+import { Cover, SysBadge, fmtAgo, fmtTime, useAutoThumb, useObjectURL } from './common.tsx';
+import { GameDetails } from './GameDetails.tsx';
+import type { Nav } from './App.tsx';
 
 type Filter = 'all' | 'fav' | 'recent' | string;
 type Sort = 'recent' | 'title' | 'added' | 'time';
@@ -57,7 +57,7 @@ export function Library({ nav }: { nav: Nav }) {
       <main class="page">
         {recent.length > 0 && !q && filter === 'all' && (
           <section>
-            <div class="section-title" style={{ marginTop: 4 }}><h2>Continue playing</h2></div>
+            <div class="section-title" style={{ marginTop: '4px' }}><h2>Continue playing</h2></div>
             <div class="continue">
               {recent.map(g => <ContinueCard key={g.id} game={g} onPlay={() => play(g)} />)}
             </div>
@@ -111,7 +111,7 @@ export function Library({ nav }: { nav: Nav }) {
             ))}
             <button class="tile" onClick={add} aria-label="Add games">
               <div class="cover" style={{ display: 'grid', placeItems: 'center', border: '2px dashed var(--line-2)', background: 'transparent', boxShadow: 'none' }}>
-                <Plus style={{ width: 34, height: 34, color: 'var(--text-3)' }} />
+                <Plus style={{ width: '34px', height: '34px', color: 'var(--text-3)' }} />
               </div>
               <div class="title" style={{ color: 'var(--text-3)' }}>Add games</div>
             </button>

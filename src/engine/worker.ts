@@ -1,11 +1,11 @@
 /// <reference lib="webworker" />
 // Emulation worker: owns the core, timing, audio production, rewind and rendering.
 // The main thread sends one `tick` per requestAnimationFrame with the current input.
-import { Core, RUN_AUDIO, RUN_FF, RUN_VIDEO } from './core';
-import { Renderer, type DisplayOptions } from './renderer';
-import { RewindBuffer } from './rewind';
-import { Rollback, type NetMsg } from '../net/rollback';
-import type { ToWorker, FromWorker, FFAudio } from './protocol';
+import { Core, RUN_AUDIO, RUN_FF, RUN_VIDEO } from './core.ts';
+import { Renderer, type DisplayOptions } from './renderer.ts';
+import { RewindBuffer } from './rewind.ts';
+import { Rollback, type NetMsg } from '../net/rollback.ts';
+import type { ToWorker, FromWorker, FFAudio } from './protocol.ts';
 
 let core: Core;
 const carry = [0, 0, 0, 0];
@@ -68,6 +68,20 @@ self.onmessage = async (e: MessageEvent<ToWorker>) => {
       case 'net': rollback?.receive(m.msg); break;
       case 'netStart': startNet(m); break;
       case 'netStop': rollback = null; core.setStrict(false); break;
+      case 'bench': {
+        // max throughput the way uncapped fast-forward runs: frames are emulated as fast as
+        // possible and only those that reach the screen (~60/s) are rendered
+        const t = performance.now(); let n = 0, shown = t;
+        while (performance.now() - t < m.ms) {
+          const show = performance.now() - shown >= 1000 / 60;
+          core.run(show ? RUN_VIDEO | RUN_AUDIO | RUN_FF : RUN_FF);
+          if (show) { present(); shown = performance.now(); }
+          n++;
+        }
+        post({ type: 'bench', id: m.id, frames: n, ms: performance.now() - t });
+        break;
+      }
+      case 'timings': { const t = presentLog.slice(); presentLog.fill(0); presentIdx = 0; post({ type: 'timings', id: m.id, t }, [t.buffer]); break; }
       case 'netResync': if (rollback) rollback.resyncPending = true; break;
     }
   } catch (err) {
@@ -182,10 +196,13 @@ function finishTick(t0: number, now: number) {
   }
 }
 
+const presentLog = new Float64Array(4096);
+let presentIdx = 0;
 function present() {
   const f = core.frame();
   if (!f.width) return;
   S.shownFrames++;
+  presentLog[presentIdx++ & 4095] = performance.now();
   if (renderer) {
     if (core.av.width !== f.width || core.av.height !== f.height) { core.refreshAV(); renderer.coreAspect = core.av.aspect; }
     renderer.draw(f.data, f.width, f.height);

@@ -1,11 +1,11 @@
 // Main-thread controller for one play session: spins up the worker, audio and the rAF loop.
 import EmuWorker from './worker?worker';
 import workletUrl from './audio-worklet.js?url';
-import type { FromWorker, ToWorker, Stats, FFAudio, CoreOption } from './protocol';
-import type { AVInfo } from './core';
-import type { DisplayOptions } from './renderer';
-import { Renderer } from './renderer';
-import type { NetMsg } from '../net/rollback';
+import type { FromWorker, ToWorker, Stats, FFAudio, CoreOption } from './protocol.ts';
+import type { AVInfo } from './core.ts';
+import type { DisplayOptions } from './renderer.ts';
+import { Renderer } from './renderer.ts';
+import type { NetMsg } from '../net/rollback.ts';
 
 export interface StartOptions {
   coreUrl: string;
@@ -114,7 +114,7 @@ export class Emulator {
       case 'ready': this.readyResolve?.(m); this.readyResolve = null; this.errorWaiters = []; break;
       case 'stats': this.ev.stats?.(m); break;
       case 'sram': this.ev.sram?.(m.data); break;
-      case 'state': case 'loaded': case 'screenshot': this.pending.get(m.id)?.(m); this.pending.delete(m.id); break;
+      case 'state': case 'loaded': case 'screenshot': case 'bench': case 'timings': this.pending.get(m.id)?.(m); this.pending.delete(m.id); break;
       case 'frame': if (this.fallback) { this.fallback.coreAspect = m.aspect; this.fallback.draw(m.data, m.width, m.height); } break;
       case 'net': this.ev.net?.(m.msg); break;
       case 'netEvent': this.ev.desync?.(m.frame); break;
@@ -202,6 +202,10 @@ export class Emulator {
     const r = await this.request<Extract<FromWorker, { type: 'screenshot' }>>({ type: 'screenshot', id: this.nextId++ });
     return r.png;
   }
+
+  /** Benchmark helpers (bench/kaiser.html). */
+  benchMax(ms: number) { return this.request<{ frames: number; ms: number }>({ type: 'bench', id: this.nextId++, ms }); }
+  async timings(): Promise<Float64Array> { return (await this.request<{ t: Float64Array }>({ type: 'timings', id: this.nextId++ })).t; }
 
   // netplay plumbing (the session/transport lives in src/net)
   setNetHandlers(net: (m: NetMsg) => void, desync: (frame: number) => void) { this.ev.net = net; this.ev.desync = desync; }

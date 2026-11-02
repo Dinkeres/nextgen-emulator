@@ -15,18 +15,18 @@ const only = opt('only', '');
 
 const TESTS: { system: string; rom: string }[] = [
   { system: 'nes', rom: 'public/homebrew/thwaite.nes' },
-  { system: 'snes', rom: 'bench/roms/bench.sfc' },
+  { system: 'snes', rom: 'public/homebrew/breakout.sfc' },
   { system: 'gb', rom: 'public/homebrew/libbet.gb' },
   { system: 'gbc', rom: 'public/homebrew/ucity.gbc' },
   { system: 'gba', rom: 'public/homebrew/240pee_mb.gba' },
-  { system: 'genesis', rom: 'bench/roms/bench.md' },
+  { system: 'genesis', rom: 'public/homebrew/sgdk-cube3d.gen' },
 ];
 
 const results: Record<string, unknown>[] = [];
 for (const t of TESTS) {
   if (only && t.system !== only) continue;
   const sys = SYSTEMS[t.system];
-  const coreFile = `public/cores/${sys.core}${suffix}.mjs`;
+  const coreFile = `${opt('dir', 'public/cores')}/${sys.core}${suffix}.mjs`;
   if (!existsSync(t.rom) || !existsSync(coreFile)) { console.log(`skip ${t.system} (missing ${existsSync(t.rom) ? coreFile : t.rom})`); continue; }
   const t0 = performance.now();
   const factory = (await import(pathToFileURL(coreFile).href)).default;

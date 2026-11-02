@@ -1,0 +1,18 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>EJS bench</title>
+<style>html,body{margin:0;background:#000}#game{width:800px;height:600px}</style></head>
+<body><div id="game"></div>
+<script>
+  // Baseline: stock EmulatorJS (stable channel) with the same test ROMs. Used only by bench/browser-bench.mjs.
+  const q = new URLSearchParams(location.search);
+  window.t0 = performance.now();
+  EJS_player = '#game';
+  EJS_core = q.get('core');
+  EJS_gameUrl = '../roms/' + q.get('rom');
+  EJS_pathtodata = 'https://cdn.emulatorjs.org/stable/data/';
+  EJS_startOnLoaded = true;
+  EJS_threads = false;
+  EJS_onGameStart = () => { window.started = performance.now(); };
+</script>
+<script src="https://cdn.emulatorjs.org/stable/data/loader.js"></script>
+</body></html>

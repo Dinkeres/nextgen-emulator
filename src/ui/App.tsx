@@ -1,14 +1,14 @@
 import { useEffect, useState } from 'preact/hooks';
 import { AlertTriangle, Camera, Check, FastForward, Gamepad2, History, Image, Info, Plus, RotateCcw, Save, Trash2, Upload, UserPlus, Users, Zap, Download } from 'lucide-preact';
-import { settings, toasts, toast, updateSettings, useStore } from '../app/store';
-import { addFiles, pickFiles } from '../app/library';
-import { padKind } from '../engine/input';
-import type { Game } from '../app/db';
-import { Library } from './Library';
-import { Player } from './Player';
-import { SettingsPage } from './Settings';
-import { Lobby } from './Lobby';
-import type { NetSession } from '../net/session';
+import { settings, toasts, toast, updateSettings, useStore } from '../app/store.ts';
+import { addFiles, pickFiles } from '../app/library.ts';
+import { padKind } from '../engine/input.ts';
+import type { Game } from '../app/db.ts';
+import { Library } from './Library.tsx';
+import { Player } from './Player.tsx';
+import { SettingsPage } from './Settings.tsx';
+import { Lobby } from './Lobby.tsx';
+import type { NetSession } from '../net/session.ts';
 
 export type View =
   | { name: 'library' }
@@ -96,11 +96,11 @@ function Welcome() {
           <div class="card"><Zap /><div><b>Press play</b><small>Keyboard, controller or touch. Hold Tab to fast-forward, ` to rewind.</small></div></div>
           <div class="card"><Save /><div><b>Never lose progress</b><small>Auto-saves while you play. Pick up right where you left off.</small></div></div>
         </div>
-        <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', flexWrap: 'wrap' }}>
           <button class="btn primary big" onClick={done} data-autofocus autoFocus>Get started</button>
           <button class="btn big" onClick={async () => { const f = await pickFiles(); done(); if (f.length) await addFiles(f); }}><Upload />Add a ROM</button>
         </div>
-        <p style={{ color: 'var(--text-3)', fontSize: 13, marginTop: 22 }}>Includes free homebrew games to try right away.</p>
+        <p style={{ color: 'var(--text-3)', fontSize: '13px', marginTop: '22px' }}>Includes free homebrew games to try right away.</p>
       </div>
     </div>
   );

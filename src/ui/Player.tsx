@@ -1,24 +1,25 @@
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import {
   ArrowLeft, Camera, Download, FastForward, Gamepad2, LogOut, Maximize, Minimize, Pause, Play, Rewind,
-  RotateCcw, Save, Settings as Gear, Snail, Upload, Users, AlertTriangle, Volume2, VolumeX,
+  RotateCcw, Save, Settings as Gear, Snail, Upload, Users, AlertTriangle, Volume2, VolumeX, Wand2,
 } from 'lucide-preact';
-import type { Game, SaveState } from '../app/db';
-import { db } from '../app/db';
-import { Session, SLOTS } from '../app/session';
-import { settings, toast, updateSettings, useStore, effective } from '../app/store';
-import { Input } from '../engine/input';
-import { SYSTEMS, BTN } from '../engine/systems';
-import type { Stats } from '../engine/protocol';
-import type { ShaderId, AspectMode } from '../engine/renderer';
-import { setGamepadUI } from './nav';
-import { SlotCard } from './GameDetails';
-import { SysBadge } from './common';
-import { TouchControls } from './TouchControls';
-import type { Nav } from './App';
-import type { NetSession } from '../net/session';
+import type { Game, SaveState } from '../app/db.ts';
+import { db } from '../app/db.ts';
+import { Session, SLOTS } from '../app/session.ts';
+import { settings, toast, updateSettings, useStore, effective } from '../app/store.ts';
+import { Input } from '../engine/input.ts';
+import { SYSTEMS, BTN } from '../engine/systems.ts';
+import type { Stats } from '../engine/protocol.ts';
+import type { ShaderId, AspectMode } from '../engine/renderer.ts';
+import { setGamepadUI } from './nav.ts';
+import { SlotCard } from './GameDetails.tsx';
+import { SysBadge } from './common.tsx';
+import { TouchControls } from './TouchControls.tsx';
+import { Cheats } from './Cheats.tsx';
+import type { Nav } from './App.tsx';
+import type { NetSession } from '../net/session.ts';
 
-type Panel = null | 'save' | 'load' | 'settings' | 'controls';
+type Panel = null | 'save' | 'load' | 'settings' | 'controls' | 'cheats';
 
 export function Player({ game, slot, fresh, nav, net }: { game: Game; slot?: number; fresh?: boolean; nav: Nav; net?: NetSession }) {
   const s = useStore(settings);
@@ -203,7 +204,7 @@ export function Player({ game, slot, fresh, nav, net }: { game: Game; slot?: num
   const netStats = stats?.net;
 
   return (
-    <div class={`player ${hud || menu ? '' : 'hide-cursor'}`} ref={rootRef} style={{ '--sys': sys.color }}
+    <div class={`player ${hud || menu ? '' : 'hide-cursor'} ${touchMode && !menu ? 'touch-mode' : ''}`} ref={rootRef} style={{ '--sys': sys.color }}
       onPointerMove={e => { if (e.pointerType === 'mouse') poke(); }}
       onPointerDown={e => { if (!(e.target as HTMLElement).closest('.tbtn, .dpad, .hud, .pause')) poke(); }}>
       <canvas class="screen" ref={canvasRef} aria-label={`${game.title} game screen`} />
@@ -213,9 +214,9 @@ export function Player({ game, slot, fresh, nav, net }: { game: Game; slot?: num
       )}
       {phase === 'error' && (
         <div class="loading"><div class="box">
-          <AlertTriangle style={{ width: 44, height: 44, color: 'var(--warn)' }} />
+          <AlertTriangle style={{ width: '44px', height: '44px', color: 'var(--warn)' }} />
           <h2>This game couldn't start</h2>
-          <p style={{ maxWidth: 420 }}>{error}</p>
+          <p style={{ maxWidth: '420px' }}>{error}</p>
           <button class="btn primary" onClick={exit} data-autofocus><ArrowLeft />Back to library</button>
         </div></div>
       )}
@@ -257,7 +258,7 @@ export function Player({ game, slot, fresh, nav, net }: { game: Game; slot?: num
           </div>
         </>}
 
-        {editTouch && <div class="editbar"><span style={{ padding: '0 6px', fontSize: 13 }}>Drag to move · pinch or use +/- to resize</span></div>}
+        {editTouch && <div class="editbar"><span style={{ padding: '0 6px', fontSize: '13px' }}>Drag to move · pinch or use +/- to resize</span></div>}
 
         {menu && (
           <div class="pause" onPointerDown={e => { if (e.target === e.currentTarget) setMenu(false); }}>
@@ -269,12 +270,13 @@ export function Player({ game, slot, fresh, nav, net }: { game: Game; slot?: num
               {!net && <MenuItem icon={Upload} label="Load state" onClick={() => setPanel('load')} on={panel === 'load'} />}
               <MenuItem icon={Gear} label="Settings" onClick={() => setPanel('settings')} on={panel === 'settings'} />
               <MenuItem icon={Gamepad2} label="Controls" onClick={() => setPanel('controls')} on={panel === 'controls'} />
+              {!net && <MenuItem icon={Wand2} label="Cheats" onClick={() => setPanel('cheats')} on={panel === 'cheats'} />}
               {sys.maxPlayers > 1 && !net && <MenuItem icon={Users} label="Multiplayer" onClick={() => nav({ name: 'lobby', game })} />}
               {!net && <MenuItem icon={RotateCcw} label="Reset game" onClick={() => { sess().emu.reset(); setMenu(false); toast('Game reset', 'rotate', 'info'); }} />}
               <MenuItem icon={LogOut} label="Exit to library" onClick={exit} />
             </nav>
             <div class={`panel ${panel ? '' : 'empty-panel'}`}>
-              {panel && <button class="btn ghost" style={{ alignSelf: 'flex-start', color: '#fff', marginBottom: 8 }} onClick={() => setPanel(null)}><ArrowLeft />Back</button>}
+              {panel && <button class="btn ghost" style={{ alignSelf: 'flex-start', color: '#fff', marginBottom: '8px' }} onClick={() => setPanel(null)}><ArrowLeft />Back</button>}
               {(panel === 'save' || panel === 'load') && (
                 <>
                   <h3>{panel === 'save' ? 'Save to a slot' : 'Load a save'}</h3>
@@ -288,11 +290,12 @@ export function Player({ game, slot, fresh, nav, net }: { game: Game; slot?: num
                 </>
               )}
               {panel === 'settings' && <QuickSettings game={game} />}
+              {panel === 'cheats' && <><h3>Cheats</h3><Cheats game={game} dark onApply={codes => sess().emu.cheats(codes)} /></>}
               {panel === 'controls' && (
                 <>
                   <h3>Controls</h3>
                   <ControlsHelp sysName={sys.name} />
-                  <div style={{ display: 'flex', gap: 8, marginTop: 16, flexWrap: 'wrap' }}>
+                  <div style={{ display: 'flex', gap: '8px', marginTop: '16px', flexWrap: 'wrap' }}>
                     <button class="btn" onClick={() => nav({ name: 'settings', section: 'controls' })}>Remap buttons</button>
                     {touchMode && <button class="btn" onClick={() => { setEditTouch(true); setMenu(false); }}>Edit touch layout</button>}
                   </div>
@@ -349,8 +352,8 @@ function ControlsHelp({ sysName }: { sysName: string }) {
   ];
   return (
     <div>
-      <p style={{ color: 'rgba(255,255,255,.6)', marginTop: 0 }}>Keyboard and controllers work together. Plug in a controller any time — {sysName} buttons map by position.</p>
-      {rows.map(([a, b]) => <div class="setting" key={a} style={{ padding: '10px 0' }}><div class="lbl"><b>{a}</b></div><div class="ctl" style={{ color: 'rgba(255,255,255,.7)', fontFamily: 'ui-monospace, monospace', fontSize: 13 }}>{b}</div></div>)}
+      <p style={{ color: 'rgba(255,255,255,.6)', marginTop: '0px' }}>Keyboard and controllers work together. Plug in a controller any time — {sysName} buttons map by position.</p>
+      {rows.map(([a, b]) => <div class="setting" key={a} style={{ padding: '10px 0' }}><div class="lbl"><b>{a}</b></div><div class="ctl" style={{ color: 'rgba(255,255,255,.7)', fontFamily: 'ui-monospace, monospace', fontSize: '13px' }}>{b}</div></div>)}
     </div>
   );
 }

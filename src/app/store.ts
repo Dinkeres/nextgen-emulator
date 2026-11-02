@@ -1,9 +1,9 @@
 // App-wide state: settings (persisted), library, toasts. Tiny subscribe/notify store.
 import { useEffect, useState } from 'preact/hooks';
-import { db, type Game } from './db';
-import { DEFAULT_KEYS, DEFAULT_PAD, DEFAULT_HOTKEYS, type KeyBindings, type PadBindings, type Hotkey } from '../engine/input';
-import type { ShaderId, AspectMode } from '../engine/renderer';
-import type { FFAudio } from '../engine/protocol';
+import { db, type Game } from './db.ts';
+import { DEFAULT_KEYS, DEFAULT_PAD, DEFAULT_HOTKEYS, type KeyBindings, type PadBindings, type Hotkey } from '../engine/input.ts';
+import type { ShaderId, AspectMode } from '../engine/renderer.ts';
+import type { FFAudio } from '../engine/protocol.ts';
 
 export interface Settings {
   theme: 'dark' | 'light' | 'system';
@@ -49,7 +49,8 @@ export function effective(s: Settings, g?: Game | null): Settings {
 type Listener = () => void;
 class Store<T> {
   private ls = new Set<Listener>();
-  constructor(public value: T) {}
+  value: T;
+  constructor(value: T) { this.value = value; }
   set(v: T) { this.value = v; this.ls.forEach(l => l()); }
   update(fn: (v: T) => T) { this.set(fn(this.value)); }
   sub(l: Listener) { this.ls.add(l); return () => { this.ls.delete(l); }; }

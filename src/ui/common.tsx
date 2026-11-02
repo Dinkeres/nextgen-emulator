@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
 import type { ComponentChildren } from 'preact';
 import { Gamepad, Gamepad2, Joystick, Smartphone, X } from 'lucide-preact';
-import { SYSTEMS } from '../engine/systems';
-import type { Game } from '../app/db';
-import { db } from '../app/db';
+import { SYSTEMS } from '../engine/systems.ts';
+import type { Game } from '../app/db.ts';
+import { db } from '../app/db.ts';
 
 export const SYS_ICON: Record<string, typeof Gamepad> = {
   nes: Gamepad, snes: Gamepad2, genesis: Joystick, gb: Smartphone, gbc: Smartphone, gba: Smartphone,

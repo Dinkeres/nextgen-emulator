@@ -45,7 +45,8 @@ export class RewindBuffer {
   private bytes = 0;
   private current: Uint8Array | null = null;
   private scratch = new Uint8Array(0);
-  constructor(public budgetBytes: number) {}
+  budgetBytes: number;
+  constructor(budgetBytes: number) { this.budgetBytes = budgetBytes; }
 
   get length() { return this.deltas.length; }
   get usedBytes() { return this.bytes; }

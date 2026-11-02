@@ -1,0 +1,21 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Kaiser bench</title>
+<style>html,body{margin:0;background:#000}canvas{width:800px;height:600px;display:block}</style></head>
+<body><canvas></canvas>
+<script type="module">
+  // Used only by bench/browser-bench.mjs: boots one game with the real engine and exposes it.
+  import { Emulator } from '../src/engine/emulator.ts';
+  const q = new URLSearchParams(location.search);
+  window.t0 = performance.now();
+  const emu = new Emulator(document.querySelector('canvas'), {});
+  const rom = await (await fetch('../homebrew/' + q.get('rom'))).arrayBuffer();
+  await emu.start({
+    coreUrl: `../cores/${q.get('core')}.mjs`, rom, fileName: q.get('rom'),
+    display: { shader: 'sharp', aspect: 'core', integer: false }, volume: 0.5, latencyMs: 45,
+    rewind: { enabled: true, seconds: 30, budgetMB: 128 }, ffAudio: 'stretch', vsyncLock: true,
+  });
+  await emu.resume();
+  window.started = performance.now();
+  window.emu = emu;
+</script>
+</body></html>

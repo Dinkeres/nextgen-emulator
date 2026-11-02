@@ -460,3 +460,27 @@ main.page { padding: 24px var(--gutter) calc(48px + env(safe-area-inset-bottom))
 
 .footer { color: var(--text-3); font-size: 13px; text-align: center; margin-top: 56px; }
 .footer a { color: var(--text-2); }
+
+/* ---------- responsive refinements (from the screenshot review) ---------- */
+.hide-sm { display: inline; }
+@media (max-width: 640px) {
+  .hide-sm { display: none; }
+  .topbar { flex-wrap: wrap; row-gap: 10px; }
+  .topbar .actions { margin-left: auto; }
+  .topbar .search { order: 3; flex-basis: 100%; max-width: none; margin-left: 0; }
+  .topbar .btn.primary { width: 42px; padding: 0; }
+  .filters { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin: 0 calc(-1 * var(--gutter)); padding: 2px var(--gutter); }
+  .filters::-webkit-scrollbar { display: none; }
+  .filters > * { flex: none; }
+  .filters .spacer { display: none; }
+  main.page { padding-top: 12px; }
+}
+/* a setting whose options sit below it: put the divider under the options instead */
+.setting:has(> .ctl:empty) { border-bottom: 0; padding-bottom: 8px; }
+.setting:has(> .ctl:empty) + .opts { padding-bottom: 16px; border-bottom: 1px solid var(--line); }
+.cont-card .shade { background: linear-gradient(180deg, transparent 28%, rgba(5, 6, 10, 0.6) 55%, rgba(5, 6, 10, 0.96) 100%); }
+/* phones in portrait: game docks under the top bar, controls take the lower half */
+@media (orientation: portrait) {
+  .player.touch-mode canvas.screen { top: calc(env(safe-area-inset-top) + 96px); height: calc(55% - 96px - env(safe-area-inset-top)); }
+  .player.touch-mode .hud.bottom { display: none; }
+}

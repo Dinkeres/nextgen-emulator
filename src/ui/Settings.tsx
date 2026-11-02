@@ -1,14 +1,14 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { ArrowLeft, Database, Gamepad2, Info, Monitor, Network, Save, SlidersHorizontal, Volume2, Upload, Download, Trash2, Palette } from 'lucide-preact';
-import { DEFAULTS, library, settings, toast, updateSettings, useStore, refreshLibrary, type Settings as S } from '../app/store';
-import { db, exportBackup, importBackup, persist, type Game } from '../app/db';
-import { HOMEBREW } from '../app/library';
-import { Renderer, type AspectMode, type ShaderId } from '../engine/renderer';
-import { BTN, SYSTEMS, type ButtonName } from '../engine/systems';
-import { DEFAULT_HOTKEYS, padKind, type Hotkey } from '../engine/input';
-import { Confirm, Toggle, download, fmtBytes } from './common';
-import { speedLabel } from './Player';
-import type { Nav } from './App';
+import { DEFAULTS, library, settings, toast, updateSettings, useStore, refreshLibrary, type Settings as S } from '../app/store.ts';
+import { db, exportBackup, importBackup, persist, type Game } from '../app/db.ts';
+import { HOMEBREW } from '../app/library.ts';
+import { Renderer, type AspectMode, type ShaderId } from '../engine/renderer.ts';
+import { BTN, SYSTEMS, type ButtonName } from '../engine/systems.ts';
+import { DEFAULT_HOTKEYS, padKind, type Hotkey } from '../engine/input.ts';
+import { Confirm, Toggle, download, fmtBytes } from './common.tsx';
+import { speedLabel } from './Player.tsx';
+import type { Nav } from './App.tsx';
 
 type Section = 'video' | 'audio' | 'controls' | 'saves' | 'netplay' | 'advanced' | 'about';
 const SECTIONS: [Section, string, typeof Monitor][] = [
@@ -88,9 +88,9 @@ export function ShaderPreview({ shader, aspect, integer }: { shader: ShaderId; a
   const pat = useRef(testPattern());
   useEffect(() => {
     try { r.current = new Renderer(ref.current!); } catch { return; }
-    const ro = new ResizeObserver(() => { const c = ref.current!; r.current!.resize(c.clientWidth * devicePixelRatio, c.clientHeight * devicePixelRatio); r.current!.redraw(); });
+    const ro = new ResizeObserver(() => { const c = ref.current; if (!c || !r.current) return; r.current.resize(c.clientWidth * devicePixelRatio, c.clientHeight * devicePixelRatio); r.current.redraw(); });
     ro.observe(ref.current!);
-    return () => ro.disconnect();
+    return () => { ro.disconnect(); r.current = null; };
   }, []);
   useEffect(() => {
     if (!r.current) return;
@@ -199,7 +199,7 @@ function Controls() {
     <>
       <h3>Controls</h3><p class="lead">Click a binding, then press the key or controller button you want. Controllers map by button position, so A/B feel right on Xbox, PlayStation and Switch pads.</p>
       <Row title="Connected controllers" desc={pads.length ? pads.map(p => `${p.index + 1}: ${padKind(p.id)} — ${p.id.slice(0, 48)}`).join('\n') : 'None yet — press any button on your controller.'} />
-      <div class="section-title" style={{ marginTop: 18 }}><h2 style={{ fontSize: 17 }}>Buttons</h2>
+      <div class="section-title" style={{ marginTop: '18px' }}><h2 style={{ fontSize: '17px' }}>Buttons</h2>
         <button class="btn ghost" onClick={() => set('controls', { keys: DEFAULTS.controls.keys, pad: DEFAULTS.controls.pad })}>Reset to defaults</button></div>
       <div class="bindings">
         {ORDER.map(b => (
@@ -208,12 +208,12 @@ function Controls() {
               <small>{b === 'A' ? 'NES/SNES A · Genesis C' : b === 'B' ? 'NES/SNES B · Genesis B' : b === 'Y' ? 'SNES Y · Genesis A' : ''}</small></div>
             <div class="ctl">
               <button class={`bind ${isL('key', b) ? 'listening' : ''}`} onClick={() => setListen({ kind: 'key', id: b })} aria-label={`Keyboard binding for ${b}`}>{isL('key', b) ? 'Press a key…' : keyName(c.keys[b]?.[0])}</button>
-              <button class={`bind ${isL('pad', b) ? 'listening' : ''}`} style={{ minWidth: 104 }} onClick={() => setListen({ kind: 'pad', id: b })} aria-label={`Controller binding for ${b}`}>{isL('pad', b) ? 'Press button…' : PAD_NAMES[c.pad[b]?.[0] ?? -1] ?? '—'}</button>
+              <button class={`bind ${isL('pad', b) ? 'listening' : ''}`} style={{ minWidth: '104px' }} onClick={() => setListen({ kind: 'pad', id: b })} aria-label={`Controller binding for ${b}`}>{isL('pad', b) ? 'Press button…' : PAD_NAMES[c.pad[b]?.[0] ?? -1] ?? '—'}</button>
             </div>
           </div>
         ))}
       </div>
-      <div class="section-title"><h2 style={{ fontSize: 17 }}>Hotkeys</h2>
+      <div class="section-title"><h2 style={{ fontSize: '17px' }}>Hotkeys</h2>
         <button class="btn ghost" onClick={() => set('controls', { hotkeys: DEFAULT_HOTKEYS })}>Reset</button></div>
       <div class="bindings">
         {(Object.keys(HOTKEY_LABELS) as Hotkey[]).map(h => (
@@ -224,7 +224,7 @@ function Controls() {
       <Row title="Controller shortcuts" desc="Home or Select+Start opens the menu · Select+R fast-forwards · Select+L rewinds." />
       <Row title="Fast-forward mode" desc="Hold: fast while the key is held. Toggle: press once to start, again to stop." />
       <Chips value={st.speed.ffMode} options={[['hold', 'Hold'], ['toggle', 'Toggle']]} onChange={v => set('speed', { ffMode: v })} />
-      <div class="section-title"><h2 style={{ fontSize: 17 }}>Touch controls</h2></div>
+      <div class="section-title"><h2 style={{ fontSize: '17px' }}>Touch controls</h2></div>
       <Row title="On-screen controls" desc="Auto shows them on phones and tablets." />
       <Chips value={c.touch} options={[['auto', 'Auto'], ['on', 'Always'], ['off', 'Never']]} onChange={v => set('controls', { touch: v })} />
       <Row title="Opacity" desc={`${Math.round(c.touchOpacity * 100)}%`}>
@@ -271,7 +271,7 @@ function Saves() {
           catch (err) { toast((err as Error).message, 'alert', 'error'); }
         }} /></label>
       </Row>
-      <div class="section-title"><h2 style={{ fontSize: 17 }}>Storage used</h2><span class="muted">{fmtBytes(total)}{quota?.quota ? ` of ${fmtBytes(quota.quota)} available` : ''}</span></div>
+      <div class="section-title"><h2 style={{ fontSize: '17px' }}>Storage used</h2><span class="muted">{fmtBytes(total)}{quota?.quota ? ` of ${fmtBytes(quota.quota)} available` : ''}</span></div>
       {quota?.quota ? <div class="meterbar"><i style={{ width: `${Math.max(1, Math.min(100, quota.usage / quota.quota * 100))}%` }} /></div> : null}
       {games.filter(g => usage[g.id]).sort((a, b) => (usage[b.id] ?? 0) - (usage[a.id] ?? 0)).map(g => (
         <div class="storage-row" key={g.id}>
@@ -300,7 +300,7 @@ function Netplay() {
       <Row title="Max rollback" desc="How many frames the game may rewind to correct a late input before waiting." />
       <Chips value={s.maxRollback} options={[[4, '4'], [6, '6'], [8, '8']]} onChange={v => set('netplay', { maxRollback: v })} />
       <Row title="Signaling server" desc="Only used to introduce players; game traffic goes peer-to-peer. See server/README.md to run your own.">
-        <input class="input" style={{ width: 260 }} value={s.signalUrl} onInput={e => set('netplay', { signalUrl: (e.target as HTMLInputElement).value })} aria-label="Signaling server URL" />
+        <input class="input" style={{ width: '260px' }} value={s.signalUrl} onInput={e => set('netplay', { signalUrl: (e.target as HTMLInputElement).value })} aria-label="Signaling server URL" />
       </Row>
     </>
   );
@@ -328,7 +328,7 @@ function Advanced() {
       <Chips value={st.speed.ffSpeed} options={[2, 3, 4, 8, 100].map(v => [v, speedLabel(v)] as [number, string])} onChange={v => set('speed', { ffSpeed: v })} />
       {Object.entries(opts).map(([core, list]) => (
         <div key={core}>
-          <div class="section-title"><h2 style={{ fontSize: 17 }}>{core}</h2>
+          <div class="section-title"><h2 style={{ fontSize: '17px' }}>{core}</h2>
             <button class="btn ghost" onClick={() => updateSettings(x => ({ ...x, coreOptions: { ...x.coreOptions, [core]: {} } }))}>Reset</button></div>
           {list.map(o => (
             <Row key={o.key} title={o.label} desc="Applies the next time a game starts.">
@@ -351,12 +351,12 @@ function About() {
     <>
       <h3>About Kaiser</h3>
       <p class="lead">A next-generation browser emulator. Free software under the GNU GPL v3, with credit and thanks to <a href="https://github.com/EmulatorJS/EmulatorJS" target="_blank" rel="noopener">EmulatorJS</a>, whose work this project studied and builds upon, and to the libretro core authors.</p>
-      <div class="section-title"><h2 style={{ fontSize: 17 }}>Emulator cores</h2></div>
+      <div class="section-title"><h2 style={{ fontSize: '17px' }}>Emulator cores</h2></div>
       {[['FCEUmm (NES)', 'GPL-2.0'], ['Snes9x (SNES)', 'Snes9x license (non-commercial)'], ['Gambatte (GB/GBC)', 'GPL-2.0'], ['mGBA (GBA)', 'MPL-2.0'], ['Genesis Plus GX (Genesis/Mega Drive)', 'Genesis Plus GX license (non-commercial)']].map(([a, b]) => <Row key={a} title={a} desc={b} />)}
-      <div class="section-title"><h2 style={{ fontSize: 17 }}>Bundled homebrew</h2></div>
+      <div class="section-title"><h2 style={{ fontSize: '17px' }}>Bundled homebrew</h2></div>
       {HOMEBREW.map(h => <Row key={h.file} title={h.title} desc={`${h.author} · ${h.license}`}><a class="btn ghost" href={h.url} target="_blank" rel="noopener">Source</a></Row>)}
       <Row title="Interface" desc="Outfit font (OFL-1.1) · Lucide icons (ISC) · Preact (MIT)" />
-      <p style={{ color: 'var(--text-3)', marginTop: 20 }}>Kaiser never downloads games for you. Only add games you own the rights to play.</p>
+      <p style={{ color: 'var(--text-3)', marginTop: '20px' }}>Kaiser never downloads games for you. Only add games you own the rights to play.</p>
     </>
   );
 }
@@ -371,14 +371,14 @@ export function GameOverrides({ game }: { game: Game }) {
   const overridden = Object.values(over).some(o => o && Object.keys(o).length);
   return (
     <div>
-      <p style={{ color: 'var(--text-3)', marginTop: 0 }}>Override your global settings just for this game. <Palette style={{ width: 14, verticalAlign: -2 }} /></p>
+      <p style={{ color: 'var(--text-3)', marginTop: '0px' }}>Override your global settings just for this game. <Palette style={{ width: '14px', verticalAlign: -2 }} /></p>
       <ShaderPreview shader={val('video', 'shader')} aspect={val('video', 'aspect')} integer={val('video', 'integer')} />
       <Row title="Shader" /><Chips value={val<ShaderId>('video', 'shader')} options={SHADERS.map(([a, b]) => [a, b])} onChange={v => put('video', 'shader', v)} />
       <Row title="Aspect ratio" /><Chips value={val<AspectMode>('video', 'aspect')} options={ASPECTS} onChange={v => put('video', 'aspect', v)} />
       <Row title="Integer scaling"><Toggle on={val('video', 'integer')} onChange={v => put('video', 'integer', v)} label="Integer scaling" /></Row>
       <Row title="Fast-forward speed" /><Chips value={val<number>('speed', 'ffSpeed')} options={[2, 3, 4, 8, 100].map(v => [v, speedLabel(v)] as [number, string])} onChange={v => put('speed', 'ffSpeed', v)} />
       <Row title="Rewind"><Toggle on={val('speed', 'rewind')} onChange={v => put('speed', 'rewind', v)} label="Rewind" /></Row>
-      {overridden && <button class="btn ghost" style={{ marginTop: 12 }} onClick={() => save({})}><Database />Use global settings</button>}
+      {overridden && <button class="btn ghost" style={{ marginTop: '12px' }} onClick={() => save({})}><Database />Use global settings</button>}
     </div>
   );
 }

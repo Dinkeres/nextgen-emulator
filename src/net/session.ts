@@ -1,12 +1,12 @@
 // Multiplayer session: signaling (WebSocket) + WebRTC mesh + lobby state + game start barrier.
 // Lobby state is host-authoritative and travels through the signaling relay; game inputs travel
 // peer-to-peer over unreliable/unordered data channels.
-import type { NetMsg } from './rollback';
-import type { Session } from '../app/session';
-import type { Input } from '../engine/input';
-import { padKind } from '../engine/input';
-import { SYSTEMS } from '../engine/systems';
-import { toast } from '../app/store';
+import type { NetMsg } from './rollback.ts';
+import type { Session } from '../app/session.ts';
+import type { Input } from '../engine/input.ts';
+import { padKind } from '../engine/input.ts';
+import { SYSTEMS } from '../engine/systems.ts';
+import { toast } from '../app/store.ts';
 
 export const ICE_SERVERS: RTCIceServer[] = [{ urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] }];
 

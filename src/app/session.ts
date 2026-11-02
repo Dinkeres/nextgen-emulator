@@ -1,10 +1,10 @@
 // One play session: wires the Emulator to storage (auto-save, SRAM, slots, play time).
-import { Emulator } from '../engine/emulator';
-import { SYSTEMS } from '../engine/systems';
-import type { Stats } from '../engine/protocol';
-import { db, type Game } from './db';
-import { romFor } from './library';
-import { effective, settings, toast, refreshLibrary } from './store';
+import { Emulator } from '../engine/emulator.ts';
+import { SYSTEMS } from '../engine/systems.ts';
+import type { Stats } from '../engine/protocol.ts';
+import { db, type Game } from './db.ts';
+import { romFor } from './library.ts';
+import { effective, settings, toast, refreshLibrary } from './store.ts';
 
 export const AUTO_SLOT = 0;
 export const SLOTS = 10;
@@ -57,6 +57,8 @@ export class Session {
     });
     db.putKv('coreopts:' + sys.core, this.emu.coreOptions).catch(() => {});
     if (opts.netplay) return; // NetSession resumes after the start barrier
+    const cheats = this.game.cheats?.filter(c => c.on).map(c => c.code);
+    if (cheats?.length) { this.emu.cheats(cheats); toast(`${cheats.length} cheat${cheats.length > 1 ? 's' : ''} active`, 'info', 'info'); }
     if (state) toast('Resumed where you left off', 'history', 'info');
     await this.emu.resume();
     await db.updateGame(this.game.id, { lastPlayed: Date.now() });

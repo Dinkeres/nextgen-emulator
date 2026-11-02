@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, FastForward, Menu, Rewind } from 'lucide-preact';
-import { BTN, type ButtonName, type SystemInfo, buttonLabel } from '../engine/systems';
-import type { Input } from '../engine/input';
-import { settings, updateSettings, useStore } from '../app/store';
+import { BTN, type ButtonName, type SystemInfo, buttonLabel } from '../engine/systems.ts';
+import type { Input } from '../engine/input.ts';
+import { settings, updateSettings, useStore } from '../app/store.ts';
 
 /** Positions are fractions of the screen; size is a fraction of the short screen side. */
 export interface TItem { id: string; kind: 'dpad' | 'btn' | 'pill' | 'shoulder' | 'action'; b?: ButtonName; x: number; y: number; s: number; label?: string }
@@ -54,10 +54,17 @@ export function TouchControls({ system, input, editing, onDone, onMenu, onFf, on
   const short = Math.min(vw.w, vw.h);
   // portrait: controls sit in the lower half under the game
   const portrait = vw.h > vw.w;
+  // sizes scale with the screen but stop growing on tablets (thumbs don't get bigger)
+  const unit = Math.min(short, 430);
   const pos = (it: TItem) => {
     let y = it.y;
     if (portrait && it.kind !== 'action') y = 0.55 + it.y * 0.45;
-    return { left: it.x * vw.w, top: y * vw.h, size: it.s * short };
+    const size = it.s * unit;
+    const half = (it.kind === 'pill' ? size * 1.2 : it.kind === 'shoulder' ? size * 0.9 : size / 2) + 6;
+    // keep every control fully on screen whatever the aspect ratio
+    const left = Math.min(vw.w - half, Math.max(half, it.x * vw.w));
+    const top = Math.min(vw.h - size / 2 - 6, Math.max(size / 2 + 6, y * vw.h));
+    return { left, top, size };
   };
 
   // ---------- hit testing ----------
@@ -181,20 +188,20 @@ export function TouchControls({ system, input, editing, onDone, onMenu, onFf, on
             const on = (b: number) => (state.current.get([...state.current.keys()].find(k => state.current.get(k)!.id === 'dpad') ?? -1)?.mask ?? 0) & (1 << b);
             void m;
             return (
-              <div key={it.id} class="dpad" style={{ left: p.left, top: p.top, width: p.size, height: p.size, pointerEvents: 'none', outlineColor: isSel ? '#fff' : undefined }}>
+              <div key={it.id} class="dpad" style={{ left: `${p.left}px`, top: `${p.top}px`, width: `${p.size}px`, height: `${p.size}px`, pointerEvents: 'none', outlineColor: isSel ? '#fff' : undefined }}>
                 <div class={`arm h ${on(BTN.LEFT) || on(BTN.RIGHT) ? '' : ''}`} />
                 <div class="arm v" />
-                <div class={`arm ${on(BTN.UP) ? 'on' : ''}`} style={{ left: '33.3%', top: 0, width: '33.4%', height: '34%', borderRadius: '14px 14px 4px 4px' }}><ChevronUp /></div>
-                <div class={`arm ${on(BTN.DOWN) ? 'on' : ''}`} style={{ left: '33.3%', bottom: 0, width: '33.4%', height: '34%', borderRadius: '4px 4px 14px 14px' }}><ChevronDown /></div>
-                <div class={`arm ${on(BTN.LEFT) ? 'on' : ''}`} style={{ top: '33.3%', left: 0, height: '33.4%', width: '34%', borderRadius: '14px 4px 4px 14px' }}><ChevronLeft /></div>
-                <div class={`arm ${on(BTN.RIGHT) ? 'on' : ''}`} style={{ top: '33.3%', right: 0, height: '33.4%', width: '34%', borderRadius: '4px 14px 14px 4px' }}><ChevronRight /></div>
+                <div class={`arm ${on(BTN.UP) ? 'on' : ''}`} style={{ left: '33.3%', top: '0px', width: '33.4%', height: '34%', borderRadius: '14px 14px 4px 4px' }}><ChevronUp /></div>
+                <div class={`arm ${on(BTN.DOWN) ? 'on' : ''}`} style={{ left: '33.3%', bottom: '0px', width: '33.4%', height: '34%', borderRadius: '4px 4px 14px 14px' }}><ChevronDown /></div>
+                <div class={`arm ${on(BTN.LEFT) ? 'on' : ''}`} style={{ top: '33.3%', left: '0px', height: '33.4%', width: '34%', borderRadius: '14px 4px 4px 14px' }}><ChevronLeft /></div>
+                <div class={`arm ${on(BTN.RIGHT) ? 'on' : ''}`} style={{ top: '33.3%', right: '0px', height: '33.4%', width: '34%', borderRadius: '4px 14px 14px 4px' }}><ChevronRight /></div>
               </div>
             );
           }
           const w = it.kind === 'pill' ? p.size * 2.4 : it.kind === 'shoulder' ? p.size * 1.8 : p.size;
           return (
             <div key={it.id} class={`tbtn ${it.kind === 'pill' ? 'pill' : ''} ${it.kind === 'shoulder' ? 'shoulder' : ''} ${it.kind === 'action' ? 'sm' : ''} ${pressed[it.id] ? 'down' : ''}`}
-              style={{ left: p.left, top: p.top, width: w, height: p.size, fontSize: Math.max(11, p.size * (it.kind === 'btn' ? 0.36 : 0.3)), pointerEvents: 'none', outlineColor: isSel ? '#fff' : undefined }}
+              style={{ left: `${p.left}px`, top: `${p.top}px`, width: `${w}px`, height: `${p.size}px`, fontSize: `${Math.max(11, p.size * (it.kind === 'btn' ? 0.36 : 0.3))}px`, pointerEvents: 'none', outlineColor: isSel ? '#fff' : undefined }}
               aria-hidden="true">
               {it.kind === 'action' ? icon(it.id) : it.label}
             </div>
@@ -205,7 +212,7 @@ export function TouchControls({ system, input, editing, onDone, onMenu, onFf, on
         <div class="editbar">
           <button class="btn" onClick={() => resize(0.88)} disabled={!sel} aria-label="Smaller">−</button>
           <button class="btn" onClick={() => resize(1.12)} disabled={!sel} aria-label="Bigger">+</button>
-          <label>Opacity <input type="range" class="range" style={{ width: 100 }} min="0.15" max="1" step="0.05" value={opacity}
+          <label>Opacity <input type="range" class="range" style={{ width: '100px' }} min="0.15" max="1" step="0.05" value={opacity}
             onInput={e => updateSettings(x => ({ ...x, controls: { ...x.controls, touchOpacity: +(e.target as HTMLInputElement).value } }))} /></label>
           <button class="btn" onClick={reset}>Reset</button>
           <button class="btn primary" onClick={save}>Save layout</button>
