@@ -66,7 +66,8 @@ each, random inputs, every 60th frame's state hash compared between peers **and*
 | SNES rollback (delay 2, max 8) | 0 desyncs | 0 desyncs | 0 desyncs |
 | Genesis delay-based (delay 4) | 0 desyncs | 0 desyncs | 0 desyncs |
 
-All runs matched the offline reference bit-for-bit at every checkpoint.
+All runs matched the offline reference bit-for-bit at every checkpoint. A further test corrupts one peer mid-match:
+the checksum mismatch is detected within 30 frames and the host's automatic resync heals it (no further desyncs).
 
 ## 4. Real-browser netplay and long-session stability
 

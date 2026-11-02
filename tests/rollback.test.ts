@@ -82,3 +82,30 @@ for (const [coreName, rom, maxRb] of CASES) for (const net of NETS) {
     assert.ok(checked >= 3, `only ${checked} checkpoints compared`);
   });
 }
+
+test('desync is detected and healed by a host resync', async () => {
+  const cores = [await makeCore('fceumm', 'public/homebrew/thwaite.nes'), await makeCore('fceumm', 'public/homebrew/thwaite.nes')];
+  let clock = 0;
+  const queue: { at: number; to: number; msg: NetMsg }[] = [];
+  const desyncAt: number[] = [];
+  const sessions = [0, 1].map(me => new Rollback({
+    core: cores[me], localPort: me, players: [0, 1], inputDelay: 2, maxRollback: 8, hashInterval: 30, now: () => clock,
+    send: msg => queue.push({ at: clock + 30, to: 1 - me, msg: structuredClone(msg) }),
+    onDesync: f => { desyncAt.push(f); if (me === 0) sessions[0].resyncPending = true; }, // port 0 is the host
+  }));
+  const rand = rng(9);
+  for (let t = 0; t < 1500; t++) {
+    clock += 1000 / 60;
+    for (let i = queue.length - 1; i >= 0; i--) if (queue[i].at <= clock) { sessions[queue[i].to].receive(queue[i].msg); queue.splice(i, 1); }
+    if (t === 400) cores[1].run(0); // corrupt peer 1: one extra emulated frame nobody knows about
+    for (const me of [0, 1]) sessions[me].advance(rand() < 0.2 ? Math.floor(rand() * 256) : 0, false);
+  }
+  const [a, b] = sessions.map(s => s.stats());
+  assert.ok(desyncAt.length >= 1, 'desync was detected');
+  assert.ok(b.resyncs >= 1, 'peer received the host state');
+  const last = Math.max(...desyncAt);
+  assert.ok(last < 700, `desyncs stopped after the resync (last at frame ${last})`);
+  // after healing, the latest checkpoints agree
+  const f = Math.floor((Math.min(a.frame, b.frame) - 40) / 30) * 30;
+  assert.equal(sessions[0].getHash(f), sessions[1].getHash(f), `hashes agree at frame ${f}`);
+});
