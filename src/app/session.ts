@@ -9,8 +9,12 @@ import { effective, settings, toast, refreshLibrary, type Settings } from './sto
 export const AUTO_SLOT = 0;
 
 /** Options a system always needs from us (e.g. DS touch through the pointer device). */
+/** DS: use the WebAssembly-threads build (3D on its own core) when the page can run threads. */
+const dsThreads = () => typeof SharedArrayBuffer !== 'undefined' && self.crossOriginIsolated && (navigator.hardwareConcurrency ?? 1) > 1;
+export function coreFile(core: string) { return core === 'melonds' && dsThreads() ? 'melonds-mt' : core; }
+
 export function systemOptions(system: string, cfg: Settings): Record<string, string> {
-  if (system === 'nds') return { melonds_touch_mode: 'Touch', melonds_screen_layout: cfg.ds.layout, melonds_screen_gap: '0' };
+  if (system === 'nds') return { melonds_touch_mode: 'Touch', melonds_screen_layout: cfg.ds.layout, melonds_screen_gap: '0', melonds_threaded_renderer: dsThreads() ? 'enabled' : 'disabled' };
   return {};
 }
 
@@ -44,6 +48,7 @@ export class Session {
       stats: s => { this.stats = s; this.onStats?.(s); },
       sram: d => { if (this.netplay) return; db.putSram(this.game.id, d).catch(e => this.onError?.('Could not write save data: ' + e)); },
       error: m => this.onError?.(m),
+      notice: c => { if (c === 'rewind-heavy') toast('Rewind is off for this game so it runs smoothly (Settings → Advanced to force it)', 'info', 'info', 4500); },
     });
   }
 
@@ -61,7 +66,7 @@ export class Session {
     const slot = opts.fresh || opts.netplay ? undefined : opts.slot ?? (cfg.saves.resume ? AUTO_SLOT : undefined);
     if (slot !== undefined) state = await (await db.state(this.game.id, slot))?.state.arrayBuffer();
     await this.emu.start({
-      coreUrl: `${import.meta.env.BASE_URL}cores/${sys.core}.mjs`,
+      coreUrl: `${import.meta.env.BASE_URL}cores/${coreFile(sys.core)}.mjs`,
       rom, fileName: this.game.fileName,
       sram: sram ? (sram.slice().buffer as ArrayBuffer) : undefined, state,
       options: { ...(opts.netplay ? {} : cfg.coreOptions[sys.core]), ...systemOptions(sys.id, cfg) },
@@ -69,7 +74,7 @@ export class Session {
       display: { shader: cfg.video.shader, aspect: cfg.video.aspect, integer: cfg.video.integer },
       volume: cfg.audio.muted ? 0 : cfg.audio.volume,
       latencyMs: cfg.audio.latencyMs,
-      rewind: { enabled: cfg.speed.rewind && !opts.netplay, seconds: cfg.speed.rewindSeconds, budgetMB: navigator.maxTouchPoints > 0 ? 48 : 128 },
+      rewind: { enabled: cfg.speed.rewind && !opts.netplay, seconds: cfg.speed.rewindSeconds, budgetMB: navigator.maxTouchPoints > 0 ? 48 : 128, heavy: cfg.speed.rewindHeavy },
       ffAudio: cfg.audio.ffAudio,
       vsyncLock: cfg.video.vsyncLock,
     });
@@ -87,7 +92,9 @@ export class Session {
     // pagehide fires on tab close/navigation (beforeunload is unreliable, esp. on mobile). The worker
     // can't answer in time while the page is torn down, so write the latest snapshot right away.
     this.on(window, 'pagehide', () => { this.trackTime(); this.writeLatest(); });
-    this.snapTimer = window.setInterval(() => { if (!this.emu.paused) this.snapshot().catch(() => {}); }, 2000);
+    // big states (DS ~6 MB) are expensive to capture: snapshot less often so play stays smooth
+    const snapEvery = this.emu.stateSize > 1 << 20 ? 15000 : 2000;
+    this.snapTimer = window.setInterval(() => { if (!this.emu.paused) this.snapshot().catch(() => {}); }, snapEvery);
   }
 
   private on(t: EventTarget, ev: string, fn: EventListener) { t.addEventListener(ev, fn); this.listeners.push([t, ev, fn]); }

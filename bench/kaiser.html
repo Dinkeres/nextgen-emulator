@@ -12,7 +12,8 @@
   await emu.start({
     coreUrl: `../cores/${q.get('core')}.mjs`, rom, fileName: q.get('rom'),
     display: { shader: 'sharp', aspect: 'core', integer: false }, volume: 0.5, latencyMs: 45,
-    rewind: { enabled: true, seconds: 30, budgetMB: 128 }, ffAudio: 'stretch', vsyncLock: true,
+    rewind: { enabled: true, seconds: 30, budgetMB: 128, heavy: q.get('heavy') === '1' }, ffAudio: 'stretch', vsyncLock: true,
+    options: q.get('core') === 'melonds' ? { melonds_touch_mode: 'Touch' } : undefined,
   });
   await emu.resume();
   window.started = performance.now();

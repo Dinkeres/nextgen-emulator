@@ -44,7 +44,7 @@ link() { # name archive
     -sENVIRONMENT=web,worker,node -sALLOW_MEMORY_GROWTH=1 -sINITIAL_MEMORY=64MB -sSTACK_SIZE=4MB \
     -sEXPORTED_FUNCTIONS=_malloc,_free -sFORCE_FILESYSTEM=1 -sINVOKE_RUN=0 -sEXIT_RUNTIME=0 \
     -sEXPORTED_RUNTIME_METHODS=FS,HEAPU8,HEAP16,HEAPU16,HEAPU32,HEAPF64,UTF8ToString,stringToNewUTF8 \
-    -sUSE_ZLIB=1 2>&1 | grep -v "warning:" || true
+    -sUSE_ZLIB=1 $LINKEXTRA 2>&1 | grep -v "warning:" || true
   ls -la "$OUT/$name$SUFFIX.wasm"
 }
 
@@ -69,9 +69,17 @@ core() {
       emmake make -j$J mgba_libretro >>"$HERE/../.build-mgba.log" 2>&1 || { tail -30 "$HERE/../.build-mgba.log"; return 1; }
       link mgba "$PWD/mgba_libretro.bc";;
     # melonDS's emscripten target links a wasm side module; archive its objects instead
-    melonds)  build_make melonDS Makefile melonds_libretro_emscripten.bc HAVE_OPENGL=0 HAVE_THREADS=0 >/dev/null || return 1
+    # melonDS forces -fno-tree-vectorize; EMCC_CFLAGS come last so -ftree-vectorize re-enables it.
+    # melonds-mt: WebAssembly threads build so the 3D renderer runs on its own core (needs COOP/COEP).
+    melonds|melonds-mt)
+              local keep="$OPT" mt=0; [ "$1" = melonds-mt ] && mt=1
+              OPT="$OPT -ftree-vectorize"; [ $mt = 1 ] && OPT="$OPT -pthread"; export EMCC_CFLAGS="$OPT"
+              python3 "$HERE/patches/melonds-frameskip.py" >/dev/null  # idempotent
+              build_make melonDS Makefile melonds_libretro_emscripten.bc HAVE_OPENGL=0 HAVE_THREADS=$mt >/dev/null || return 1
               (cd "$SRC/melonDS" && rm -f /tmp/melonds-objs.a && find . -name '*.o' -print0 | xargs -0 emar rcs /tmp/melonds-objs.a)
-              link melonds /tmp/melonds-objs.a;;
+              [ $mt = 1 ] && LINKEXTRA="-pthread -sPTHREAD_POOL_SIZE=2"
+              link "$1" /tmp/melonds-objs.a
+              OPT="$keep"; export EMCC_CFLAGS="$OPT"; LINKEXTRA="";;
     desmume2015) link desmume2015 "$(build_make desmume2015/desmume Makefile.libretro desmume2015_libretro_emscripten.bc)";;
     *) echo "unknown core $1"; return 1;;
   esac

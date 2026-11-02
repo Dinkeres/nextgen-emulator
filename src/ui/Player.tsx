@@ -83,8 +83,8 @@ export function Player({ game, slot, fresh, nav, net }: { game: Game; slot?: num
     sess().emu.set({
       display: { shader: cfg.video.shader, aspect: cfg.video.aspect, integer: cfg.video.integer },
       options: systemOptions(game.system, cfg),
-      volume: cfg.audio.muted ? 0 : cfg.audio.volume, ffAudio: cfg.audio.ffAudio, vsyncLock: cfg.video.vsyncLock,
-      rewind: { enabled: cfg.speed.rewind, seconds: cfg.speed.rewindSeconds, budgetMB: navigator.maxTouchPoints > 0 ? 48 : 128 },
+      volume: cfg.audio.muted ? 0 : cfg.audio.volume, ffAudio: cfg.audio.ffAudio, vsyncLock: cfg.video.vsyncLock, frameskip: cfg.video.frameskip,
+      rewind: { enabled: cfg.speed.rewind, seconds: cfg.speed.rewindSeconds, budgetMB: navigator.maxTouchPoints > 0 ? 48 : 128, heavy: cfg.speed.rewindHeavy },
     });
     sess().scheduleAuto();
   }, [phase, JSON.stringify([cfg.video, cfg.audio, cfg.speed, cfg.saves.autoSaveMinutes, cfg.ds])]);
@@ -242,7 +242,7 @@ export function Player({ game, slot, fresh, nav, net }: { game: Game; slot?: num
         {!rew && !ff && slow && <div class="indicator slow"><Snail />{cfg.speed.slowSpeed}×</div>}
 
         {cfg.video.showFps && stats && (
-          <div class="statsbox">{`${stats.fps.toFixed(0)} fps  ·  emu ${stats.emuFps.toFixed(0)}\nframe ${stats.workMs.toFixed(2)} ms\naudio ${stats.audioFill} buf  ·  ${stats.underruns} underruns\nrewind ${stats.rewindSeconds.toFixed(0)} s / ${stats.rewindMB.toFixed(1)} MB${netStats ? `\nrollbacks ${netStats.rollbacks}  max ${netStats.maxRollbackSeen}f` : ''}`}</div>
+          <div class="statsbox">{`${stats.fps.toFixed(0)} fps  ·  emu ${stats.emuFps.toFixed(0)}${stats.skipping ? '  ·  frameskip' : ''}\nframe ${stats.workMs.toFixed(2)} ms\naudio ${stats.audioFill} buf  ·  ${stats.underruns} underruns\nrewind ${stats.rewindSeconds.toFixed(0)} s / ${stats.rewindMB.toFixed(1)} MB${netStats ? `\nrollbacks ${netStats.rollbacks}  max ${netStats.maxRollbackSeen}f` : ''}`}</div>
         )}
         {net && netStats && <NetOverlay stats={netStats} names={net.names()} />}
 

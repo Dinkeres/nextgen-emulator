@@ -9,10 +9,10 @@ export interface Settings {
   theme: 'dark' | 'light' | 'system';
   libraryView: 'grid' | 'list';
   welcomed: boolean;
-  video: { shader: ShaderId; aspect: AspectMode; integer: boolean; vsyncLock: boolean; showFps: boolean };
+  video: { shader: ShaderId; aspect: AspectMode; integer: boolean; vsyncLock: boolean; showFps: boolean; frameskip: 'auto' | 'off' };
   audio: { volume: number; latencyMs: number; ffAudio: FFAudio; muted: boolean };
   saves: { autoSaveMinutes: number; resume: boolean; autoSaveOnHide: boolean };
-  speed: { ffSpeed: number; ffMode: 'hold' | 'toggle'; slowSpeed: number; rewind: boolean; rewindSeconds: number };
+  speed: { ffSpeed: number; ffMode: 'hold' | 'toggle'; slowSpeed: number; rewind: boolean; rewindSeconds: number; rewindHeavy: boolean };
   controls: { keys: KeyBindings; pad: PadBindings; hotkeys: Record<Hotkey, string>; touch: 'auto' | 'on' | 'off'; touchOpacity: number; haptics: boolean };
   netplay: { name: string; signalUrl: string; inputDelay: number | 'auto'; maxRollback: number };
   coreOptions: Record<string, Record<string, string>>; // per core
@@ -28,10 +28,10 @@ const isMobile = typeof matchMedia !== 'undefined' && matchMedia('(pointer: coar
 
 export const DEFAULTS: Settings = {
   theme: 'dark', libraryView: 'grid', welcomed: false,
-  video: { shader: 'sharp', aspect: 'core', integer: false, vsyncLock: true, showFps: false },
+  video: { shader: 'sharp', aspect: 'core', integer: false, vsyncLock: true, showFps: false, frameskip: 'auto' },
   audio: { volume: 0.8, latencyMs: isMobile ? 70 : 45, ffAudio: 'stretch', muted: false },
   saves: { autoSaveMinutes: 2, resume: true, autoSaveOnHide: true },
-  speed: { ffSpeed: 3, ffMode: 'hold', slowSpeed: 0.5, rewind: true, rewindSeconds: isMobile ? 15 : 45 },
+  speed: { ffSpeed: 3, ffMode: 'hold', slowSpeed: 0.5, rewind: true, rewindSeconds: isMobile ? 15 : 45, rewindHeavy: false },
   controls: { keys: DEFAULT_KEYS, pad: DEFAULT_PAD, hotkeys: DEFAULT_HOTKEYS, touch: 'auto', touchOpacity: 0.55, haptics: true },
   netplay: { name: '', signalUrl: DEFAULT_SIGNAL, inputDelay: 'auto', maxRollback: 8 },
   coreOptions: {},

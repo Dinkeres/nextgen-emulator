@@ -15,14 +15,14 @@ export type ToWorker =
       options?: Record<string, string>; sram?: ArrayBuffer; state?: ArrayBuffer;
       /** user-supplied BIOS/firmware written to /system before the game loads */
       systemFiles?: Record<string, ArrayBuffer>;
-      rewind?: { enabled: boolean; seconds: number; budgetMB: number };
+      rewind?: { enabled: boolean; seconds: number; budgetMB: number; heavy?: boolean };
     }
   /** stylus: [x, y, down] normalized to the canvas (0..1), for touch-screen systems */
   | { type: 'tick'; now: number; dt: number; inputs: number[]; vsync: boolean; stylus?: [number, number, number] }
   | {
       type: 'set'; speed?: number; paused?: boolean; rewinding?: boolean; ffAudio?: FFAudio; volume?: number;
-      displayHz?: number; vsyncLock?: boolean; display?: Partial<DisplayOptions>;
-      rewind?: { enabled: boolean; seconds: number; budgetMB: number }; options?: Record<string, string>;
+      displayHz?: number; vsyncLock?: boolean; frameskip?: 'auto' | 'off'; display?: Partial<DisplayOptions>;
+      rewind?: { enabled: boolean; seconds: number; budgetMB: number; heavy?: boolean }; options?: Record<string, string>;
     }
   | { type: 'resize'; w: number; h: number }
   | { type: 'saveState'; id: number }
@@ -39,7 +39,7 @@ export type ToWorker =
 
 export interface Stats {
   emuFps: number; fps: number; workMs: number; audioFill: number; underruns: number;
-  rewindSeconds: number; rewindMB: number; wasmMB: number; net?: NetStats;
+  rewindSeconds: number; rewindMB: number; wasmMB: number; skipping?: boolean; net?: NetStats;
 }
 
 export type FromWorker =
@@ -53,5 +53,6 @@ export type FromWorker =
   | { type: 'net'; msg: NetMsg }
   | { type: 'netEvent'; event: 'desync'; frame: number }
   | { type: 'error'; message: string }
+  | { type: 'notice'; code: 'rewind-heavy' }
   | { type: 'bench'; id: number; frames: number; ms: number }
   | { type: 'timings'; id: number; t: Float64Array };

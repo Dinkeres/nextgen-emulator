@@ -18,6 +18,7 @@ let rollback: Rollback | null = null;
 const S = {
   speed: 1, paused: true, rewinding: false, ffAudio: 'stretch' as FFAudio, volume: 1,
   acc: 0, frame: 0, rewindGran: 1, rewindEnabled: true,
+  frameskip: 'auto' as 'auto' | 'off', skipping: false, frameCost: 0,
   vsyncLock: true, displayHz: 60,
   // audio
   outRate: 48000, ring: null as Float32Array | null, ctl: null as Int32Array | null, cap: 0,
@@ -44,8 +45,9 @@ self.onmessage = async (e: MessageEvent<ToWorker>) => {
         if (m.volume !== undefined) S.volume = m.volume;
         if (m.displayHz) S.displayHz = m.displayHz;
         if (m.vsyncLock !== undefined) S.vsyncLock = m.vsyncLock;
+        if (m.frameskip) S.frameskip = m.frameskip;
         if (m.display && renderer) { renderer.opts = { ...renderer.opts, ...m.display }; renderer.redraw(); }
-        if (m.rewind) configureRewind(m.rewind.enabled, m.rewind.seconds, m.rewind.budgetMB);
+        if (m.rewind) configureRewind(m.rewind.enabled, m.rewind.seconds, m.rewind.budgetMB, m.rewind.heavy);
         if (m.options) for (const [k, v] of Object.entries(m.options)) core.setOption(k, v);
         break;
       case 'resize': renderer?.resize(m.w, m.h); renderer?.redraw(); break;
@@ -111,20 +113,36 @@ async function init(m: Extract<ToWorker, { type: 'init' }>) {
     S.port = m.audio.port; S.cap = m.audio.capacity;
     S.port.onmessage = ev => { S.portFill = ev.data.fill; S.portUnder = ev.data.underruns; };
   }
-  configureRewind(m.rewind?.enabled ?? true, m.rewind?.seconds ?? 30, m.rewind?.budgetMB ?? 96);
+  configureRewind(m.rewind?.enabled ?? true, m.rewind?.seconds ?? 30, m.rewind?.budgetMB ?? 96, m.rewind?.heavy);
   const resumed = m.state ? core.loadState(new Uint8Array(m.state)) : false;
   // draw the first frame so the screen isn't black before the first tick
   core.run(RUN_VIDEO); present();
   post({ type: 'ready', av: core.av, coreName: core.name, coreVersion: core.version, options: core.options(), stateSize: core.stateSize(), hasSram: !!core.sram(), resumed });
 }
 
-function configureRewind(enabled: boolean, seconds: number, budgetMB: number) {
+let rewindTick = 0;
+let snapshotMs = -1; // measured cost of one rewind snapshot on this device
+function configureRewind(enabled: boolean, seconds: number, budgetMB: number, heavy = false) {
   S.rewindEnabled = enabled;
   if (!enabled) { rewind = null; return; }
   const size = core.stateSize();
   if (!size) { rewind = null; return; }
-  // big states (SNES/GBA/Genesis ~0.5-1MB) snapshot every 2nd frame; deltas are small anyway
-  S.rewindGran = size > 300_000 ? 2 : 1;
+  // Measure what a snapshot costs here (state save + delta compression). DS states are ~6 MB and
+  // can cost several times more than emulating the frame, which wrecks slow devices.
+  if (snapshotMs < 0) {
+    const probe = new RewindBuffer(64 << 20);
+    probe.push(core.saveState());
+    const t = performance.now();
+    for (let i = 0; i < 3; i++) probe.push(core.saveState());
+    snapshotMs = (performance.now() - t) / 3;
+  }
+  if (snapshotMs > 5 && !heavy) {
+    rewind = null; S.rewindEnabled = false;
+    post({ type: 'notice', code: 'rewind-heavy' });
+    return;
+  }
+  // snapshot often enough to feel smooth but keep the average overhead ~1.5 ms per frame
+  S.rewindGran = Math.min(30, Math.max(size > 300_000 ? 2 : 1, Math.ceil(snapshotMs / 1.5)));
   // ~estimate 6% of state size per delta; clamp to the budget
   const want = seconds * core.av.fps / S.rewindGran * size * 0.06;
   const budget = Math.min(want, budgetMB * 1048576);
@@ -140,7 +158,10 @@ function tick(now: number, dt: number, inputs: number[], vsync: boolean) {
 
   if (S.rewinding && rewind) {
     let st: Uint8Array | null = null;
-    const steps = Math.max(1, Math.round(2 / S.rewindGran));
+    // play back at ~2x real time whatever the snapshot interval
+    rewindTick++;
+    const every = Math.max(1, Math.floor(S.rewindGran / 2));
+    const steps = rewindTick % every === 0 ? Math.max(1, Math.round(2 / S.rewindGran)) : 0;
     for (let i = 0; i < steps; i++) { const s = rewind.pop(); if (s) st = s; else break; }
     if (st) {
       core.loadState(st); core.run(RUN_VIDEO | RUN_AUDIO); present(); S.emuFrames++;
@@ -162,7 +183,15 @@ function tick(now: number, dt: number, inputs: number[], vsync: boolean) {
 
   const fps = core.av.fps;
   let n: number;
-  const locked = vsync && S.vsyncLock && S.speed === 1 && Math.abs(S.displayHz - fps) / fps < 0.012;
+  // Auto frameskip: if emulating + drawing a frame doesn't fit the refresh budget, leave the
+  // one-frame-per-refresh lock so the accumulator runs 2 frames per tick and only the last is drawn
+  // (cores that honour GET_AUDIO_VIDEO_ENABLE, like melonDS, skip drawing the others).
+  const budget = 1000 / Math.max(30, S.displayHz);
+  if (S.frameskip === 'auto') {
+    if (!S.skipping && S.frameCost > budget * 0.8) S.skipping = true;
+    else if (S.skipping && S.frameCost < budget * 0.45) S.skipping = false;
+  } else S.skipping = false;
+  const locked = !S.skipping && vsync && S.vsyncLock && S.speed === 1 && Math.abs(S.displayHz - fps) / fps < 0.012;
   if (locked) { n = 1; S.acc = 0; }
   else {
     S.acc += Math.min(dt, 100) / 1000 * fps * S.speed;
@@ -190,6 +219,7 @@ function tick(now: number, dt: number, inputs: number[], vsync: boolean) {
     if (last) { present(); }
     if (uncapped && last) break;
   }
+  if (n && !uncapped) S.frameCost = S.frameCost * 0.95 + (performance.now() - t0) / n * 0.05;
   if (S.frame % 30 === 0) checkSram();
   finishTick(t0, now);
 }
@@ -215,6 +245,7 @@ function finishTick(t0: number, now: number) {
     post({
       type: 'stats', emuFps: S.emuFrames / secs, fps: S.shownFrames / secs, workMs: S.workMs,
       audioFill: fill(), underruns: S.ctl ? Atomics.load(S.ctl, 2) : S.portUnder,
+      skipping: S.skipping,
       rewindSeconds: rewind ? rewind.length * S.rewindGran / core.av.fps : 0, rewindMB: rewind ? rewind.usedBytes / 1048576 : 0, wasmMB: core.memoryBytes / 1048576,
       net: rollback?.stats(),
     });

@@ -18,7 +18,7 @@ export interface StartOptions {
   display: DisplayOptions;
   volume: number;
   latencyMs: number;
-  rewind: { enabled: boolean; seconds: number; budgetMB: number };
+  rewind: { enabled: boolean; seconds: number; budgetMB: number; heavy?: boolean };
   ffAudio: FFAudio;
   vsyncLock: boolean;
 }
@@ -27,6 +27,7 @@ export interface Events {
   stats?: (s: Stats) => void;
   sram?: (d: Uint8Array) => void;
   error?: (msg: string) => void;
+  notice?: (code: string) => void;
   net?: (m: NetMsg) => void;
   desync?: (frame: number) => void;
 }
@@ -48,6 +49,7 @@ export class Emulator {
   coreName = '';
   coreOptions: CoreOption[] = [];
   hasSram = false;
+  stateSize = 0;
   resumed = false;
   paused = true;
   displayHz = 60;
@@ -100,7 +102,7 @@ export class Emulator {
     if (port) transfer.push(port);
     this.worker.postMessage(msg, transfer);
     const r = await ready as Extract<FromWorker, { type: 'ready' }>;
-    this.av = r.av; this.coreName = r.coreName; this.coreOptions = r.options; this.hasSram = r.hasSram; this.resumed = r.resumed;
+    this.av = r.av; this.coreName = r.coreName; this.coreOptions = r.options; this.hasSram = r.hasSram; this.resumed = r.resumed; this.stateSize = r.stateSize;
     this.set({ ffAudio: o.ffAudio, volume: o.volume, vsyncLock: o.vsyncLock });
 
     this.ro = new ResizeObserver(() => this.resize());
@@ -126,6 +128,7 @@ export class Emulator {
       case 'frame': if (this.fallback) { this.fallback.coreAspect = m.aspect; this.fallback.draw(m.data, m.width, m.height); } break;
       case 'net': this.ev.net?.(m.msg); break;
       case 'netEvent': this.ev.desync?.(m.frame); break;
+      case 'notice': this.ev.notice?.(m.code); break;
       case 'error':
         if (this.errorWaiters.length) { this.errorWaiters.forEach(f => f(new Error(m.message))); this.errorWaiters = []; }
         else this.ev.error?.(m.message);

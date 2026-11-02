@@ -119,6 +119,8 @@ function Video() {
       <Row title="Sync to display" desc="When your screen runs near the game's speed (60 Hz), present exactly one frame per refresh for perfectly smooth motion. Turn off if a game runs slightly fast or slow.">
         <Toggle on={s.vsyncLock} onChange={v => set('video', { vsyncLock: v })} label="Sync to display" />
       </Row>
+      <Row title="Frame skip" desc="Auto keeps games at full speed on slower devices (e.g. Chromebooks) by drawing every other frame when needed. Off always draws every frame, even if the game slows down." />
+      <Chips value={s.frameskip} options={[['auto', 'Auto'], ['off', 'Off']]} onChange={v => set('video', { frameskip: v })} />
       <Row title="Show performance stats" desc="FPS, frame time, audio buffer and rewind memory in the corner.">
         <Toggle on={s.showFps} onChange={v => set('video', { showFps: v })} label="Show stats" />
       </Row>
@@ -323,6 +325,7 @@ function Advanced() {
       <h3>Advanced</h3><p class="lead">Core options for each emulator. Options appear after you've played a game on that system once.</p>
       <Row title="Isolation" desc={self.crossOriginIsolated ? 'Cross-origin isolated: shared-memory audio is active.' : 'Not isolated: using message-based audio (works fine, slightly more overhead).'} />
       <Row title="Rewind" desc="Keeps recent history in memory so you can hold rewind."><Toggle on={st.speed.rewind} onChange={v => set('speed', { rewind: v })} label="Rewind" /></Row>
+      <Row title="Rewind on demanding systems" desc="Rewind is switched off automatically when snapshots would slow the game down (e.g. Nintendo DS on slower devices). Turn this on to force it."><Toggle on={st.speed.rewindHeavy} onChange={v => set('speed', { rewindHeavy: v })} label="Force rewind" /></Row>
       <Row title="Rewind length" desc="Longer history uses more memory (shrunk automatically on phones)." />
       <Chips value={st.speed.rewindSeconds} options={[[15, '15 s'], [30, '30 s'], [45, '45 s'], [60, '60 s']]} onChange={v => set('speed', { rewindSeconds: v })} />
       <Row title="Slow motion speed" />
