@@ -2,6 +2,7 @@
 import { db, sha256, type Game } from './db.ts';
 import { refreshLibrary, toast } from './store.ts';
 import { SYSTEMS, systemForFile } from '../engine/systems.ts';
+import { zipEntries, zipRead } from './unzip.ts';
 
 export interface Homebrew { file: string; title: string; system: string; author: string; license: string; url: string; blurb: string }
 
@@ -51,7 +52,16 @@ function titleFromFile(name: string) {
 export async function addFiles(files: Iterable<File>): Promise<Game[]> {
   const added: Game[] = [];
   const skipped: string[] = [];
-  for (const f of files) {
+  for (let f of files) {
+    if (/\.zip$/i.test(f.name)) {
+      // ROMs are often zipped: use the first supported file inside
+      try {
+        const buf = await f.arrayBuffer();
+        const entry = zipEntries(buf).find(e => systemForFile(e.name));
+        if (!entry) { skipped.push(f.name); continue; }
+        f = new File([(await zipRead(buf, entry)) as BlobPart], entry.name.split('/').pop()!);
+      } catch { skipped.push(f.name); continue; }
+    }
     const sys = systemForFile(f.name);
     if (!sys) { skipped.push(f.name); continue; }
     if (f.size > 64 * 1048576) { skipped.push(f.name); continue; }
@@ -77,7 +87,7 @@ export function pickFiles(): Promise<File[]> {
   return new Promise(res => {
     const i = document.createElement('input');
     i.type = 'file'; i.multiple = true;
-    i.accept = Object.values(SYSTEMS).flatMap(s => s.exts).map(e => '.' + e).join(',');
+    i.accept = [...Object.values(SYSTEMS).flatMap(s => s.exts), 'zip'].map(e => '.' + e).join(',');
     i.onchange = () => res([...(i.files ?? [])]);
     i.click();
   });

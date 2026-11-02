@@ -93,7 +93,7 @@ export function Library({ nav }: { nav: Nav }) {
           <button class="empty" onClick={add}>
             <div class="ring"><Upload /></div>
             <h3>Drop a ROM here or click to add one</h3>
-            <p>Your games stay on this device. Supported: NES, SNES, Game Boy, Game Boy Color, Game Boy Advance and Genesis / Mega Drive.</p>
+            <p>Your games stay on this device. Supported: NES, SNES, Game Boy, Game Boy Color, Game Boy Advance and Genesis / Mega Drive — zipped ROMs work too.</p>
           </button>
         ) : shown.length === 0 ? (
           <div class="empty" style={{ cursor: 'default' }}><h3>No matches</h3><p>Try a different search or filter.</p></div>

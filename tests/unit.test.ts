@@ -143,3 +143,32 @@ test('backup export/import round-trips saves', async () => {
   const bad = await new Response(new Blob(['{}']).stream().pipeThrough(new CompressionStream('gzip'))).blob();
   await assert.rejects(importBackup(bad), /not a Kaiser backup/);
 });
+
+// ---------- zip ----------
+test('zip reader extracts stored and deflated ROMs', async () => {
+  const { zipEntries, zipRead } = await import('../src/app/unzip.ts');
+  const { deflateRawSync, crc32 } = await import('node:zlib');
+  const files = [{ name: 'readme.txt', data: Buffer.from('hello'), deflate: false }, { name: 'dir/Game (USA).sfc', data: Buffer.alloc(5000, 7), deflate: true }];
+  const parts: Buffer[] = [], central: Buffer[] = [];
+  let off = 0;
+  for (const f of files) {
+    const comp = f.deflate ? deflateRawSync(f.data) : f.data;
+    const name = Buffer.from(f.name);
+    const lh = Buffer.alloc(30); lh.writeUInt32LE(0x04034b50, 0); lh.writeUInt16LE(f.deflate ? 8 : 0, 8);
+    lh.writeUInt32LE(crc32(f.data), 14); lh.writeUInt32LE(comp.length, 18); lh.writeUInt32LE(f.data.length, 22); lh.writeUInt16LE(name.length, 26);
+    const ch = Buffer.alloc(46); ch.writeUInt32LE(0x02014b50, 0); ch.writeUInt16LE(f.deflate ? 8 : 0, 10);
+    ch.writeUInt32LE(comp.length, 20); ch.writeUInt32LE(f.data.length, 24); ch.writeUInt16LE(name.length, 28); ch.writeUInt32LE(off, 42);
+    parts.push(lh, name, comp); central.push(ch, name);
+    off += 30 + name.length + comp.length;
+  }
+  const cd = Buffer.concat(central);
+  const end = Buffer.alloc(22); end.writeUInt32LE(0x06054b50, 0); end.writeUInt16LE(files.length, 8); end.writeUInt16LE(files.length, 10);
+  end.writeUInt32LE(cd.length, 12); end.writeUInt32LE(off, 16);
+  const zip = Buffer.concat([...parts, cd, end]);
+  const buf = zip.buffer.slice(zip.byteOffset, zip.byteOffset + zip.length);
+  const entries = zipEntries(buf);
+  assert.deepEqual(entries.map(e => e.name), ['readme.txt', 'dir/Game (USA).sfc']);
+  assert.equal(new TextDecoder().decode(await zipRead(buf, entries[0])), 'hello');
+  const rom = await zipRead(buf, entries[1]);
+  assert.equal(rom.length, 5000); assert.ok(rom.every(b => b === 7));
+});
