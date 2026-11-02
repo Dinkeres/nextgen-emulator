@@ -5,7 +5,7 @@ import { Core, RUN_AUDIO, RUN_FF, RUN_VIDEO } from './core.ts';
 import { LinkCore } from './linkcore.ts';
 import { Renderer, type DisplayOptions } from './renderer.ts';
 import { RewindBuffer } from './rewind.ts';
-import { Rollback, type NetMsg } from '../net/rollback.ts';
+import { Rollback, packInput, type NetMsg } from '../net/rollback.ts';
 import type { ToWorker, FromWorker, FFAudio } from './protocol.ts';
 
 let core: Core | LinkCore;
@@ -233,15 +233,20 @@ function tick(now: number, dt: number, inputs: number[], vsync: boolean) {
 
 /** Canvas-relative stylus -> libretro pointer space over the emulated frame (local port 0). */
 let stylusState: [number, number, number] = [0, 0, 0];
+/** Latest local touch in pointer space, or null when not touching (folded into netplay input). */
+let localTouch: [number, number] | null = null;
 function applyStylus(s: [number, number, number]) {
   stylusState = s;
-  if (!renderer) { core.setPointer(0, Math.round(s[0] * 65535 - 32768), Math.round(s[1] * 65535 - 32768), !!s[2]); return; }
-  const [vx, vy, vw, vh] = renderer.viewport();
-  const c = renderer.size();
-  const fx = (s[0] * c[0] - vx) / vw, fy = (s[1] * c[1] - vy) / vh;
-  const inside = fx >= 0 && fx <= 1 && fy >= 0 && fy <= 1;
   const clamp = (v: number) => Math.max(-32767, Math.min(32767, Math.round(v * 65535 - 32768)));
-  core.setPointer(0, clamp(fx), clamp(fy), !!s[2] && inside);
+  let fx = s[0], fy = s[1];
+  if (renderer) {
+    const [vx, vy, vw, vh] = renderer.viewport();
+    const c = renderer.size();
+    fx = (s[0] * c[0] - vx) / vw; fy = (s[1] * c[1] - vy) / vh;
+  }
+  const down = !!s[2] && fx >= 0 && fx <= 1 && fy >= 0 && fy <= 1;
+  localTouch = down ? [clamp(fx), clamp(fy)] : null;
+  if (!rollback) core.setPointer(0, clamp(fx), clamp(fy), down);
 }
 void stylusState;
 
@@ -369,7 +374,7 @@ function startNet(m: Extract<ToWorker, { type: 'netStart' }>) {
   netAcc = 0;
   S.rewinding = false;
   rollback = new Rollback({
-    core, localPort: m.localPort, players: m.players, inputDelay: m.inputDelay, maxRollback: m.maxRollback,
+    core, localPort: m.localPort, players: m.players, inputDelay: m.inputDelay, maxRollback: m.maxRollback, shared: m.shared,
     send: (msg: NetMsg) => post({ type: 'net', msg }),
     onDesync: (frame: number) => post({ type: 'netEvent', event: 'desync', frame }),
     startState: m.state ? new Uint8Array(m.state) : undefined,
@@ -386,7 +391,7 @@ function netTick(inputs: number[]) {
   let shown = false;
   while (netAcc >= 1) {
     netAcc--;
-    const res = rollback.advance(inputs[0] ?? 0, netAcc < 1);
+    const res = rollback.advance(packInput(inputs[0] ?? 0, localTouch), netAcc < 1);
     if (res.ran) { S.frame++; S.emuFrames++; pushAudio(core.audio(), 1); shown = true; }
   }
   if (shown) present();

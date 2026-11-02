@@ -8,6 +8,7 @@
 export interface RollbackCore {
   run(flags: number): void;
   setInput(port: number, mask: number): void;
+  setPointer?(port: number, x: number, y: number, pressed: boolean): void;
   saveState(): Uint8Array;
   loadState(s: Uint8Array): boolean;
 }
@@ -28,6 +29,8 @@ export interface RollbackOpts {
   send: (m: NetMsg) => void;
   onDesync?: (frame: number) => void;
   startState?: Uint8Array;
+  /** shared console (DS): every player's buttons drive port 0; the touch screen follows whoever touches */
+  shared?: boolean;
   hashInterval?: number;      // frames between desync checks
   now?: () => number;
 }
@@ -41,6 +44,19 @@ export interface NetStats {
 const RUN_VIDEO = 1, RUN_AUDIO = 2;
 const HIST = 256; // ring size for inputs (frames)
 
+/** One player's input for one frame as a single JSON-safe number: 16 button bits, a "touching"
+ *  bit, and the stylus position in libretro pointer space (-32768..32767) for touch screens. */
+export function packInput(buttons: number, ptr?: [number, number] | null): number {
+  const b = buttons & 0xffff;
+  if (!ptr) return b;
+  return b + 0x10000 + (ptr[0] + 32768) * 0x20000 + (ptr[1] + 32768) * 0x200000000;
+}
+export function unpackInput(v: number): [number, [number, number] | null] {
+  const b = v % 0x10000;
+  if (Math.floor(v / 0x10000) % 2 === 0) return [b, null];
+  return [b, [Math.floor(v / 0x20000) % 0x10000 - 32768, Math.floor(v / 0x200000000) - 32768]];
+}
+
 export function fnv1a(d: Uint8Array): number {
   let h = 0x811c9dc5;
   for (let i = 0; i < d.length; i++) { h ^= d[i]; h = Math.imul(h, 0x01000193); }
@@ -48,7 +64,7 @@ export function fnv1a(d: Uint8Array): number {
 }
 
 class PlayerInput {
-  masks = new Int32Array(HIST);
+  masks = new Float64Array(HIST); // packed input (buttons + stylus), see packInput
   frames = new Int32Array(HIST).fill(-1); // which frame each slot holds (confirmed)
   confirmed = -1;     // highest frame f such that all frames <= f are known
   lastKnown = 0;      // mask of the latest known frame (prediction)
@@ -66,7 +82,7 @@ export class Rollback {
   F = 0;
   private o: Required<Omit<RollbackOpts, 'startState' | 'onDesync'>> & Pick<RollbackOpts, 'onDesync'>;
   private inp = new Map<number, PlayerInput>();
-  private used = new Map<number, Int32Array>(); // what we fed the core per port (to detect mispredictions)
+  private used = new Map<number, Float64Array>(); // what we fed the core per port (to detect mispredictions)
   private states: (Uint8Array | null)[];
   private stateFrame: Int32Array;
   private rollbackTo = Infinity;
@@ -83,7 +99,7 @@ export class Rollback {
 
   constructor(opts: RollbackOpts) {
     this.o = { hashInterval: 60, now: () => performance.now(), ...opts } as typeof this.o;
-    for (const p of opts.players) { this.inp.set(p, new PlayerInput()); this.used.set(p, new Int32Array(HIST).fill(-1)); }
+    for (const p of opts.players) { this.inp.set(p, new PlayerInput()); this.used.set(p, new Float64Array(HIST).fill(-1)); }
     const n = Math.max(1, opts.maxRollback) + 2;
     this.states = new Array(n).fill(null);
     this.stateFrame = new Int32Array(n).fill(-1);
@@ -143,12 +159,19 @@ export class Rollback {
     const slot = f % this.states.length;
     this.states[slot] = this.o.core.saveState();
     this.stateFrame[slot] = f;
-    for (const [p, pi] of this.inp) {
+    let shared = 0, touch: [number, number] | null = null;
+    for (const [p, pi] of [...this.inp].sort((a, b) => a[0] - b[0])) {
       const known = pi.get(f);
       const m = known ?? pi.lastKnown;
-      this.o.core.setInput(p, m);
       const u = this.used.get(p)!;
       u[f & (HIST - 1)] = known === undefined ? -1 - m : m; // negative = predicted
+      const [buttons, ptr] = unpackInput(m);
+      if (this.o.shared) { shared |= buttons; if (ptr && !touch) touch = ptr; }
+      else { this.o.core.setInput(p, buttons); if (ptr) this.o.core.setPointer?.(p, ptr[0], ptr[1], true); }
+    }
+    if (this.o.shared) {
+      this.o.core.setInput(0, shared);
+      this.o.core.setPointer?.(0, touch?.[0] ?? 0, touch?.[1] ?? 0, !!touch);
     }
     this.o.core.run(flags);
   }

@@ -40,11 +40,12 @@ Things I deliberately did not decide alone, or that you should know before relyi
     the exception in `cores/build.sh` for a free speed-up.
 13. `docs/screenshots/` is ~8 MB of PNGs committed for the README; regenerate any time with `npm run screenshots`.
 
-## In progress (session 2)
-14. **GBA link-cable multiplayer** — design done and glue written (`cores/glue/gbalink.c`: up to 4 mGBA cores in one
-    wasm module, linked by mGBA's lockstep coordinator, scheduled deterministically on one thread). Not yet built or
-    wired into the app. Remaining: build mGBA as a static library + this glue, a JS `LinkCore` for the worker,
-    per-player save exchange in the lobby, an original link test ROM, and determinism tests.
-15. **DS online play** — real DS *wireless* emulation across browsers isn't feasible with this melonDS version (one
-    console per process, real-time wireless timing). The plan is a shared-console mode (players share one DS, touch
-    synced over the network) using the existing delay-based netcode.
+## Multiplayer status (session 2)
+14. **GBA link cable — done.** 2–4 players; every browser runs all players' GBAs linked by mGBA's lockstep
+    coordinator; each player keeps their own save (saves are exchanged at start, never ROMs). Delay-based netcode:
+    exact replay after a mid-session reload drifts a few cycles, so rollback is off for link play.
+15. **DS — shared console, done.** Everyone controls the same DS (buttons combined, touch from whoever touches).
+    True DS *wireless* (separate DS per player, e.g. Mario Kart DS battles) needs a newer melonDS with in-process
+    local multiplayer; not feasible yet.
+16. **Matchmaking runs on your Cloudflare account** (`kaiser-signal.luvrookie1.workers.dev`, free plan, Durable Objects).
+    Redeploy with `cd server/cloudflare && npx wrangler deploy`.

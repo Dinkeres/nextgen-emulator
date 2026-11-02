@@ -54,7 +54,9 @@ export const SYSTEMS: Record<string, SystemInfo> = {
   nds: {
     id: 'nds', name: 'Nintendo DS', short: 'DS', core: 'melonds',
     exts: ['nds', 'dsi', 'ids', 'srl'], color: '#9aa4b1',
-    buttons: [...DPAD, 'Y', 'X', 'B', 'A', 'L', 'R', 'SELECT', 'START'], rollback: false, maxPlayers: 1,
+    buttons: [...DPAD, 'Y', 'X', 'B', 'A', 'L', 'R', 'SELECT', 'START'],
+    // online play = shared console (everyone controls one DS, touch included), delay-based
+    rollback: false, maxPlayers: 4,
   },
   genesis: {
     id: 'genesis', name: 'Sega Genesis / Mega Drive', short: 'Genesis', core: 'genesis_plus_gx',

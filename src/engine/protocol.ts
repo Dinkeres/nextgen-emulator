@@ -35,7 +35,7 @@ export type ToWorker =
   | { type: 'cheats'; codes: string[] }
   | { type: 'screenshot'; id: number }
   | { type: 'net'; msg: NetMsg }
-  | { type: 'netStart'; localPort: number; players: number[]; inputDelay: number; maxRollback: number; state?: ArrayBuffer }
+  | { type: 'netStart'; localPort: number; players: number[]; inputDelay: number; maxRollback: number; state?: ArrayBuffer; shared?: boolean }
   | { type: 'netStop' }
   | { type: 'netResync' }
   | { type: 'bench'; id: number; ms: number }

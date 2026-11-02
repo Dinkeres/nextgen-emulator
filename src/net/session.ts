@@ -9,7 +9,7 @@ import { SYSTEMS } from '../engine/systems.ts';
 import { toast } from '../app/store.ts';
 import { db } from '../app/db.ts';
 
-type StartCfg = { players: number[]; delay: number; maxRollback: number; link?: boolean };
+type StartCfg = { players: number[]; delay: number; maxRollback: number; link?: boolean; shared?: boolean };
 
 export const ICE_SERVERS: RTCIceServer[] = [{ urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] }];
 
@@ -22,7 +22,7 @@ type Relay =
   | { k: 'hello'; name: string; hasRom: boolean | null; pad: string }
   | { k: 'ready'; ready: boolean } | { k: 'spectate'; on: boolean } | { k: 'chat'; text: string }
   | { k: 'lobby'; state: LobbyState } | { k: 'chatline'; line: ChatLine }
-  | { k: 'start'; players: number[]; delay: number; maxRollback: number; link?: boolean }
+  | { k: 'start'; players: number[]; delay: number; maxRollback: number; link?: boolean; shared?: boolean }
   | { k: 'sram'; port: number; i: number; n: number; data: string }
   | { k: 'loaded' } | { k: 'go' } | { k: 'rom'; hasRom: boolean | null }
   // fallback transport through the signaling server when no direct WebRTC channel is open
@@ -300,7 +300,7 @@ export class NetSession {
     const maxRollback = sys.rollback ? opts.maxRollback : 0;
     const delay = opts.inputDelay !== 'auto' ? opts.inputDelay
       : maxRollback ? Math.min(4, Math.max(0, Math.round(oneWayFrames) - 1)) : Math.min(8, Math.max(2, Math.ceil(oneWayFrames) + 1));
-    const cfg: StartCfg = { players, delay, maxRollback, link: sys.id === 'gba' };
+    const cfg: StartCfg = { players, delay, maxRollback, link: sys.id === 'gba', shared: sys.id === 'nds' };
     this.startCfg = cfg;
     this.state.started = true;
     this.pushLobby(); // (renumbered ports) must reach everyone before 'start'
@@ -327,7 +327,7 @@ export class NetSession {
     const go = new Promise<void>(res => { this.goResolve = res; });
     if (this.isHost) { this.loaded.add(this.me); this.checkGo(); } else this.relay({ k: 'loaded' }, this.state.hostId);
     await Promise.race([go, new Promise((_, rej) => setTimeout(() => rej(new Error('Timed out waiting for the other players to load the game.')), 30000))]);
-    sess.emu.netStart({ localPort: this.mePeer?.port ?? -1, players: cfg.players, inputDelay: cfg.delay, maxRollback: cfg.maxRollback });
+    sess.emu.netStart({ localPort: this.mePeer?.port ?? -1, players: cfg.players, inputDelay: cfg.delay, maxRollback: cfg.maxRollback, shared: cfg.shared });
     await sess.emu.resume();
     toast(cfg.maxRollback ? `Online · ${cfg.delay}f delay · rollback on` : `Online · ${cfg.delay}f delay`, 'users', 'success');
   }

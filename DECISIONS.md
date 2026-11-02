@@ -92,3 +92,15 @@ Every judgment call made while building this autonomously, with the reason. Newe
 ## Testing
 33. Tests use Node's built-in test runner with type-stripping (no framework). Browser benchmarks use Playwright headless
     Chromium because the automation browser window was rAF-throttled.
+
+## Session 2 (DS, hosted multiplayer, link cable)
+34. **DS core: melonDS** (libretro fork) with built-in FreeBIOS, so no BIOS files are needed; users may add their own.
+    Newest-devkitPro (calico) homebrew doesn't boot on it; the bundled DS demo is built with BlocksDS.
+35. **DS speed on weak devices:** rewind is switched off automatically when one snapshot costs > 5 ms (DS: ~12 ms);
+    safety snapshots every 15 s for big states; a small melonDS patch (`cores/patches/melonds-frameskip.py`) skips
+    drawing frames the frontend won't show; auto-frameskip draws every other frame when a device can't keep up;
+    a WebAssembly-threads build renders 3D on a second core when the page is cross-origin isolated.
+36. **Hosted matchmaking on Cloudflare Workers + Durable Objects** (one object per room); when WebRTC can't connect
+    directly, game traffic falls back to the server relay automatically.
+37. **GBA multiplayer = emulated link cable**, all players' GBAs on every machine, delay-based (see NEEDS_REVIEW 14).
+38. **DS multiplayer = shared console**, delay-based (6 MB states make rollback too costly).
