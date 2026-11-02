@@ -49,3 +49,12 @@ BIOS/
 !public/homebrew/*
 bench/roms/
 bench/basecores/
+
+# 3DS game dumps (never committed)
+*.3ds
+*.cia
+*.cxi
+*.cci
+*.3dsx
+*.cxi.*
+/3ds-work/
