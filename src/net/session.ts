@@ -20,7 +20,9 @@ type Relay =
   | { k: 'ready'; ready: boolean } | { k: 'spectate'; on: boolean } | { k: 'chat'; text: string }
   | { k: 'lobby'; state: LobbyState } | { k: 'chatline'; line: ChatLine }
   | { k: 'start'; players: number[]; delay: number; maxRollback: number }
-  | { k: 'loaded' } | { k: 'go' } | { k: 'rom'; hasRom: boolean | null };
+  | { k: 'loaded' } | { k: 'go' } | { k: 'rom'; hasRom: boolean | null }
+  // fallback transport through the signaling server when no direct WebRTC channel is open
+  | { k: 'net'; m: NetMsg } | { k: 'syncPart'; from: number; frame: number; i: number; n: number; data: string };
 
 type Peer = { pc: RTCPeerConnection; input?: RTCDataChannel; ctl?: RTCDataChannel; rtt: number; pingAt: number };
 
@@ -39,6 +41,7 @@ export class NetSession {
   private sess: Session | null = null;
   private syncRx = new Map<string, { hdr: { frame: number; size: number; from: number }; chunks: Uint8Array[]; got: number }>();
   private pingTimer = 0;
+  private seenAt = new Map<string, number>();
   private ended = false;
 
   get isHost() { return this.me === this.state.hostId; }
@@ -51,7 +54,10 @@ export class NetSession {
     s.hasRomFn = opts.hasRom ?? (() => null);
     await new Promise<void>((res, rej) => {
       let ws: WebSocket;
-      try { ws = new WebSocket(url); } catch { rej(new Error('Invalid signaling server address.')); return; }
+      // rooms are URL paths (Cloudflare routes each room to its own Durable Object)
+      const base = url.replace(/\/+$/, '');
+      const target = `${base}/room/${opts.create ? 'new' : encodeURIComponent((opts.room ?? '').toUpperCase())}`;
+      try { ws = new WebSocket(target); } catch { rej(new Error('Invalid signaling server address.')); return; }
       s.ws = ws;
       const t = setTimeout(() => { ws.close(); rej(new Error(`Couldn't reach the signaling server at ${url}. Is it running?`)); }, 6000);
       ws.onerror = () => { clearTimeout(t); rej(new Error(`Couldn't reach the signaling server at ${url}. Is it running? (npm run signal)`)); };
@@ -68,7 +74,7 @@ export class NetSession {
             s.state.game = opts.create;
             s.state.peers = [{ id: s.me, name, port: 0, ready: true, hasRom: true, pad: s.padName(), ping: 0 }];
           } else {
-            for (const p of m.peers) s.connectTo(p.id); // newcomer offers to everyone already here
+            for (const p of m.peers) { s.seenAt.set(p.id, Date.now()); s.connectTo(p.id); } // newcomer offers to everyone already here
             s.relay({ k: 'hello', name, hasRom: null, pad: s.padName() });
           }
           s.pingTimer = window.setInterval(() => s.pingAll(), 1000);
@@ -88,7 +94,7 @@ export class NetSession {
   // ---------------- signaling ----------------
   private async onSignal(m: { t: string; from?: string; id?: string; name?: string; data?: unknown }) {
     switch (m.t) {
-      case 'peer-joined': this.sysChat(`${m.name} joined`); break;
+      case 'peer-joined': this.seenAt.set(m.id!, Date.now()); this.sysChat(`${m.name} joined`); break;
       case 'peer-left': this.peerLeft(m.id!); break;
       case 'signal': await this.onRtc(m.from!, m.data as { sdp?: RTCSessionDescriptionInit; ice?: RTCIceCandidateInit }); break;
       case 'relay': this.onRelay(m.from!, m.data as Relay); break;
@@ -155,6 +161,7 @@ export class NetSession {
 
   private pingAll() {
     for (const p of this.peers.values()) if (p.ctl?.readyState === 'open') p.ctl.send(JSON.stringify({ k: 'ping', ts: performance.now() }));
+    if (!this.state.started) this.emit(); // lobby state that depends on time (connection grace period)
   }
   private reportPing(id: string, rtt: number) {
     const peer = this.state.peers.find(x => x.id === id);
@@ -163,21 +170,46 @@ export class NetSession {
 
   /** Broadcast a rollback message to every peer (unreliable for inputs, reliable otherwise). */
   private broadcast(m: NetMsg) {
-    for (const [id, p] of this.peers) {
-      const spectator = this.state.peers.find(x => x.id === id)?.port === null;
+    for (const lp of this.state.peers) {
+      if (lp.id === this.me) continue;
+      const p = this.peers.get(lp.id);
+      const spectator = lp.port === null;
       if (m.t === 'sync') {
-        if (p.ctl?.readyState !== 'open') continue;
-        p.ctl.send(JSON.stringify({ k: 'syncHdr', frame: m.frame, size: m.state.length, from: m.from }));
-        for (let i = 0; i < m.state.length; i += 16384) p.ctl.send(m.state.slice(i, i + 16384));
+        if (p?.ctl?.readyState === 'open') {
+          p.ctl.send(JSON.stringify({ k: 'syncHdr', frame: m.frame, size: m.state.length, from: m.from }));
+          for (let i = 0; i < m.state.length; i += 16384) p.ctl.send(m.state.slice(i, i + 16384));
+        } else this.relaySync(m, lp.id);
         continue;
       }
-      const ch = spectator || m.t === 'hash' ? p.ctl : p.input;
+      const ch = spectator || m.t === 'hash' ? p?.ctl : p?.input;
       if (ch?.readyState === 'open') ch.send(JSON.stringify(m));
+      else this.relay({ k: 'net', m }, lp.id); // no direct path (strict NAT): go through the server
     }
   }
 
+  private relaySync(m: Extract<NetMsg, { t: 'sync' }>, to: string) {
+    let bin = ''; for (let i = 0; i < m.state.length; i += 0x8000) bin += String.fromCharCode(...m.state.subarray(i, i + 0x8000));
+    const b64 = btoa(bin), CH = 48000, n = Math.ceil(b64.length / CH);
+    for (let i = 0; i < n; i++) this.relay({ k: 'syncPart', from: m.from, frame: m.frame, i, n, data: b64.slice(i * CH, (i + 1) * CH) }, to);
+  }
+  private syncParts: string[] = [];
+
+  /** 'direct' when a WebRTC channel is open to that peer, otherwise 'relay'. */
+  linkType(id: string): 'direct' | 'relay' { return this.peers.get(id)?.input?.readyState === 'open' ? 'direct' : 'relay'; }
+
   // ---------------- lobby (host authoritative) ----------------
   private onRelay(from: string, d: Relay) {
+    if (d.k === 'net') { this.sess?.emu.netReceive(d.m); return; }
+    if (d.k === 'syncPart') {
+      this.syncParts[d.i] = d.data;
+      if (this.syncParts.filter(Boolean).length === d.n) {
+        const state = Uint8Array.from(atob(this.syncParts.join('')), c => c.charCodeAt(0));
+        this.syncParts = [];
+        this.sess?.emu.netReceive({ t: 'sync', from: d.from, frame: d.frame, state });
+        toast('Resynced with host', 'rotate', 'info');
+      }
+      return;
+    }
     if (this.isHost) {
       const peer = this.state.peers.find(p => p.id === from);
       if (d.k === 'hello' && !peer && !this.state.started) {
@@ -236,7 +268,8 @@ export class NetSession {
     if (missing) return `${missing.name} doesn't have the same ROM yet.`;
     const notReady = players.find(p => !p.ready);
     if (notReady) return `Waiting for ${notReady.name} to ready up…`;
-    for (const p of players) if (p.id !== this.me) { const pc = this.peers.get(p.id); if (pc?.input?.readyState !== 'open') return `Connecting to ${p.name}…`; }
+    // wait a few seconds for a direct WebRTC link; after that the server relay is used instead
+    for (const p of players) if (p.id !== this.me && this.linkType(p.id) === 'relay' && Date.now() - (this.seenAt.get(p.id) ?? 0) < 8000) return `Connecting to ${p.name}…`;
     return null;
   }
 

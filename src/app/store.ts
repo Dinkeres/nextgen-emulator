@@ -21,6 +21,9 @@ export interface Settings {
 
 export type DSLayout = 'Top/Bottom' | 'Left/Right' | 'Hybrid Top' | 'Hybrid Bottom';
 
+/** Hosted matchmaking (Cloudflare Worker, server/cloudflare). Run `npm run signal` for a local one. */
+export const DEFAULT_SIGNAL = 'wss://kaiser-signal.luvrookie1.workers.dev';
+
 const isMobile = typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches;
 
 export const DEFAULTS: Settings = {
@@ -30,7 +33,7 @@ export const DEFAULTS: Settings = {
   saves: { autoSaveMinutes: 2, resume: true, autoSaveOnHide: true },
   speed: { ffSpeed: 3, ffMode: 'hold', slowSpeed: 0.5, rewind: true, rewindSeconds: isMobile ? 15 : 45 },
   controls: { keys: DEFAULT_KEYS, pad: DEFAULT_PAD, hotkeys: DEFAULT_HOTKEYS, touch: 'auto', touchOpacity: 0.55, haptics: true },
-  netplay: { name: '', signalUrl: 'ws://localhost:8787', inputDelay: 'auto', maxRollback: 8 },
+  netplay: { name: '', signalUrl: DEFAULT_SIGNAL, inputDelay: 'auto', maxRollback: 8 },
   coreOptions: {},
   ds: { layout: 'Top/Bottom' },
 };
@@ -77,7 +80,9 @@ export const library = new Store<Game[]>([]);
 
 export async function loadSettings() {
   const saved = await db.kv<Partial<Settings>>('settings').catch(() => undefined);
-  settings.set(merge(DEFAULTS, saved ?? {}));
+  const s = merge(DEFAULTS, saved ?? {});
+  if (s.netplay.signalUrl === 'ws://localhost:8787') s.netplay.signalUrl = DEFAULT_SIGNAL; // old default
+  settings.set(s);
 }
 
 let saveTimer = 0;

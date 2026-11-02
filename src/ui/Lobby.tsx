@@ -145,7 +145,7 @@ export function Lobby({ nav, game: initialGame, room: joinRoom }: { nav: Nav; ga
               {'share' in navigator && <button class="btn icon" onClick={() => navigator.share({ title: 'Play with me on Kaiser', url: link }).catch(() => {})} aria-label="Share"><Link2 /></button>}
             </div>
             <div class="pslots">
-              {slots.map((p, i) => p ? <Slot key={p.id} p={p} i={i} me={net.me} host={st.hostId} /> : (
+              {slots.map((p, i) => p ? <Slot key={p.id} p={p} i={i} me={net.me} host={st.hostId} link={p.id === net.me ? undefined : net.linkType(p.id)} /> : (
                 <div key={i} class="pslot empty-slot">Player {i + 1} · open</div>
               ))}
             </div>
@@ -172,7 +172,7 @@ export function Lobby({ nav, game: initialGame, room: joinRoom }: { nav: Nav; ga
   );
 }
 
-function Slot({ p, i, me, host }: { p: LobbyPeer; i: number; me: string; host: string }) {
+function Slot({ p, i, me, host, link }: { p: LobbyPeer; i: number; me: string; host: string; link?: 'direct' | 'relay' }) {
   const PadIcon = p.pad === 'keyboard' ? Keyboard : Gamepad2;
   const q = p.id === me ? null : p.ping < 0 ? null : p.ping < 80 ? 'good' : p.ping < 160 ? 'ok' : 'bad';
   return (
@@ -182,7 +182,8 @@ function Slot({ p, i, me, host }: { p: LobbyPeer; i: number; me: string; host: s
         <b>{p.name}{p.id === me ? ' (you)' : ''} {p.id === host && <Crown style={{ width: '14px', color: 'var(--warn)', verticalAlign: -2 }} />}</b>
         <small style={{ display: 'flex', gap: '6px', alignItems: 'center' }}><PadIcon style={{ width: '14px' }} />{p.pad === 'keyboard' ? 'Keyboard' : p.pad}
           {q && <><span class={`q ${q}`} style={{ width: '8px', height: '8px', borderRadius: '50%', display: 'inline-block' }} />{p.ping} ms</>}
-          {p.hasRom === false && <span style={{ color: 'var(--bad)' }}>· needs ROM</span>}</small>
+          {p.hasRom === false && <span style={{ color: 'var(--bad)' }}>· needs ROM</span>}
+          {link && <span title={link === 'relay' ? 'No direct connection possible; traffic goes through the server (adds latency)' : 'Direct peer-to-peer connection'}>· {link === 'relay' ? 'via server' : 'direct'}</span>}</small>
       </div>
       <span class="state">{p.ready ? 'Ready' : 'Not ready'}</span>
     </div>

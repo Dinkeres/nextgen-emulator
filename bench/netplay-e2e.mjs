@@ -9,6 +9,13 @@ const b = await chromium.launch({ args: ['--autoplay-policy=no-user-gesture-requ
 const mk = async name => {
   const ctx = await b.newContext({ viewport: { width: 1100, height: 760 } });
   const p = await ctx.newPage();
+  // FORCE_RELAY=1: break WebRTC so traffic must use the signaling-server relay
+  if (process.env.FORCE_RELAY) await p.addInitScript(() => {
+    window.RTCPeerConnection = class { constructor() { this.connectionState = 'new'; }
+      createDataChannel(label) { return { label, readyState: 'connecting', send() {}, set onmessage(_) {}, set onopen(_) {} }; }
+      async createOffer() { return { type: 'offer', sdp: '' }; } async createAnswer() { return { type: 'answer', sdp: '' }; }
+      async setLocalDescription(d) { this.localDescription = d; } async setRemoteDescription() {} async addIceCandidate() {} close() {} };
+  });
   p.on('pageerror', e => console.log(name, 'PAGE ERROR', e.message));
   p.on('console', m => { if (/desync|netplay|error/i.test(m.text())) console.log(name, m.type(), m.text()); });
   await p.goto(BASE);
@@ -32,7 +39,7 @@ await guest.fill('input[aria-label="Room code"]', room);
 await guest.click('form button:has-text("Join")');
 await guest.waitForSelector('.pslots');
 await guest.click('text=Ready up');
-await host.waitForFunction(() => !document.querySelector('.lobby .btn.primary.big')?.disabled, null, { timeout: 20000 });
+await host.waitForFunction(() => !document.querySelector('.lobby .btn.primary.big')?.disabled, null, { timeout: 30000 });
 await guest.locator('.chat input').fill('hello from guest'); await guest.locator('.chat form button').click();
 await sleep(1500);
 if (process.env.SHOT) await host.screenshot({ path: 'docs/screenshots/desktop-17-lobby.png' });
