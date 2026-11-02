@@ -8,6 +8,8 @@ import { Rollback, type NetMsg } from '../net/rollback';
 import type { ToWorker, FromWorker, FFAudio } from './protocol';
 
 let core: Core;
+const carry = [0, 0, 0, 0];
+const silence = new Float32Array(4096 * 2);
 let renderer: Renderer | null = null;
 let rewind: RewindBuffer | null = null;
 let rollback: Rollback | null = null;
@@ -32,7 +34,7 @@ self.onmessage = async (e: MessageEvent<ToWorker>) => {
   try {
     switch (m.type) {
       case 'init': await init(m); break;
-      case 'tick': tick(m.now, m.dt, m.inputs); break;
+      case 'tick': tick(m.now, m.dt, m.inputs, m.vsync); break;
       case 'set':
         if (m.speed !== undefined) { S.speed = m.speed; S.acc = 0; }
         if (m.paused !== undefined) { S.paused = m.paused; if (!m.paused) primeAudio(); }
@@ -65,7 +67,8 @@ self.onmessage = async (e: MessageEvent<ToWorker>) => {
       case 'screenshot': post({ type: 'screenshot', id: m.id, png: await thumbnail('image/png', 0) }); break;
       case 'net': rollback?.receive(m.msg); break;
       case 'netStart': startNet(m); break;
-      case 'netStop': rollback = null; break;
+      case 'netStop': rollback = null; core.setStrict(false); break;
+      case 'netResync': if (rollback) rollback.resyncPending = true; break;
     }
   } catch (err) {
     post({ type: 'error', message: String((err as Error)?.message ?? err) });
@@ -113,11 +116,10 @@ function configureRewind(enabled: boolean, seconds: number, budgetMB: number) {
 }
 
 // ---------------- frame loop ----------------
-function tick(now: number, dt: number, inputs: number[]) {
+function tick(now: number, dt: number, inputs: number[], vsync: boolean) {
   if (!core) return;
   const t0 = performance.now();
   if (rollback) { netTick(inputs); finishTick(t0, now); return; }
-  for (let p = 0; p < inputs.length; p++) core.setInput(p, inputs[p]);
   if (S.paused) { finishTick(t0, now); return; }
 
   if (S.rewinding && rewind) {
@@ -125,13 +127,16 @@ function tick(now: number, dt: number, inputs: number[]) {
     const steps = Math.max(1, Math.round(2 / S.rewindGran));
     for (let i = 0; i < steps; i++) { const s = rewind.pop(); if (s) st = s; else break; }
     if (st) { core.loadState(st); core.run(RUN_VIDEO); present(); S.emuFrames++; }
+    // keep the audio ring primed with silence so releasing rewind doesn't glitch
+    const want = S.targetFill - fill();
+    if (want > 0) writeFrames(silence.subarray(0, Math.min(want, silence.length >> 1) * 2));
     finishTick(t0, now);
     return;
   }
 
   const fps = core.av.fps;
   let n: number;
-  const locked = S.vsyncLock && S.speed === 1 && Math.abs(S.displayHz - fps) / fps < 0.012;
+  const locked = vsync && S.vsyncLock && S.speed === 1 && Math.abs(S.displayHz - fps) / fps < 0.012;
   if (locked) { n = 1; S.acc = 0; }
   else {
     S.acc += Math.min(dt, 100) / 1000 * fps * S.speed;
@@ -140,6 +145,8 @@ function tick(now: number, dt: number, inputs: number[]) {
     const cap = Math.max(2, Math.ceil(S.speed * 3));
     if (n > cap) { n = cap; S.acc = 0; }
   }
+  // taps that happen during ticks with no emulated frame (120Hz+, slow-mo) carry over
+  for (let p = 0; p < inputs.length; p++) { core.setInput(p, inputs[p] | carry[p]); carry[p] = n ? 0 : carry[p] | inputs[p]; }
   const uncapped = S.speed >= 100; // "uncapped": run as many frames as fit in ~10ms
   const ff = S.speed > 1;
   const deadline = t0 + 10;
@@ -150,6 +157,7 @@ function tick(now: number, dt: number, inputs: number[]) {
     if (wantAudio) flags |= RUN_AUDIO;
     if (ff) flags |= RUN_FF;
     core.run(flags);
+    if (i === 0) for (let p = 0; p < inputs.length; p++) core.setInput(p, inputs[p]);
     S.frame++; S.emuFrames++;
     if (wantAudio) pushAudio(core.audio(), ff && S.ffAudio === 'pitch' ? S.speed : S.speed < 1 ? S.speed : 1);
     if (rewind && S.frame % S.rewindGran === 0) rewind.push(core.saveState());
@@ -235,7 +243,7 @@ function pushAudio(src: Int16Array, timeScale: number) {
   const frames = src.length >> 1;
   if (!frames || (!S.ring && !S.port)) return;
   const f = fill();
-  if (f > S.targetFill * 4) return; // way too far ahead (e.g. tab was throttled) — drop
+  if (f > S.targetFill * 3) return; // way too far ahead (e.g. tab was throttled) — drop
   // DRC: nudge rate ±0.5% to keep the buffer near target, which hides clock drift between
   // the core's nominal rate and the real audio clock without audible pitch change.
   const err = Math.max(-1, Math.min(1, (f - S.targetFill) / S.targetFill));
@@ -276,6 +284,8 @@ function writeFrames(buf: Float32Array) {
 // ---------------- netplay (rollback) ----------------
 function startNet(m: Extract<ToWorker, { type: 'netStart' }>) {
   rewind?.clear();
+  core.setStrict(true);
+  netAcc = 0;
   S.rewinding = false;
   rollback = new Rollback({
     core, localPort: m.localPort, players: m.players, inputDelay: m.inputDelay, maxRollback: m.maxRollback,
@@ -287,17 +297,16 @@ function startNet(m: Extract<ToWorker, { type: 'netStart' }>) {
   primeAudio();
 }
 
+let netAcc = 0;
 function netTick(inputs: number[]) {
   if (!rollback) return;
-  S.acc += 1 / 60 * core.av.fps / Math.max(1, S.displayHz / 60) * (60 / Math.max(1, S.displayHz)) * S.displayHz / 60;
-  // ponytail: netplay advances exactly one frame per tick at ~60Hz displays; frame-advantage
-  // throttling inside Rollback keeps peers in lockstep. High-refresh displays use the accumulator.
-  let n = 1;
-  if (S.displayHz > 70) { S.acc = (S.acc || 0); n = 0; netAcc += core.av.fps / S.displayHz; while (netAcc >= 1) { n++; netAcc--; } }
-  for (let i = 0; i < n; i++) {
-    const res = rollback.advance(inputs[0] ?? 0, i === n - 1);
-    if (res.ran) { S.frame++; S.emuFrames++; pushAudio(core.audio(), 1); }
+  // one emulated frame per ~60Hz tick; high-refresh displays accumulate fractional frames
+  netAcc += Math.min(2, core.av.fps / Math.max(30, S.displayHz));
+  let shown = false;
+  while (netAcc >= 1) {
+    netAcc--;
+    const res = rollback.advance(inputs[0] ?? 0, netAcc < 1);
+    if (res.ran) { S.frame++; S.emuFrames++; pushAudio(core.audio(), 1); shown = true; }
   }
-  if (n) present();
+  if (shown) present();
 }
-let netAcc = 0;
