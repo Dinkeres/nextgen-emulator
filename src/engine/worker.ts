@@ -8,6 +8,7 @@ import { RewindBuffer } from './rewind.ts';
 import { Rollback, packInput, type NetMsg } from '../net/rollback.ts';
 import type { ToWorker, FromWorker, FFAudio } from './protocol.ts';
 import { QuetzalLink } from '../net/quetzal.ts';
+import { SoulTracker } from '../net/soullink.ts';
 
 let core: Core | LinkCore;
 const carry = [0, 0, 0, 0];
@@ -17,6 +18,7 @@ let renderer: Renderer | null = null;
 let rewind: RewindBuffer | null = null;
 let rollback: Rollback | null = null;
 let qz: QuetzalLink | null = null;
+let soul: SoulTracker | null = null;
 
 const S = {
   speed: 1, paused: true, rewinding: false, ffAudio: 'stretch' as FFAudio, volume: 1,
@@ -80,6 +82,10 @@ self.onmessage = async (e: MessageEvent<ToWorker>) => {
         qz.onStatus = text => post({ type: 'qzStatus', text });
         break;
       case 'qz': qz?.receive(m.msg); break;
+      case 'slStart':
+        if (core instanceof Core) soul = new SoulTracker(core, report => post({ type: 'sl', report }));
+        break;
+      case 'slDead': soul?.setDead(m.pids); break;
       case 'bench': {
         // max throughput the way uncapped fast-forward runs: frames are emulated as fast as
         // possible and only those that reach the screen (~60/s) are rendered
@@ -228,6 +234,7 @@ function tick(now: number, dt: number, inputs: number[], vsync: boolean) {
     if (ff) flags |= RUN_FF;
     core.run(flags);
     qz?.frame();
+    soul?.frame();
     if (i === 0) for (let p = 0; p < inputs.length; p++) core.setInput(p, inputs[p]);
     S.frame++; S.emuFrames++;
     if (wantAudio) pushAudio(core.audio(), ff && S.ffAudio === 'pitch' ? S.speed : S.speed < 1 ? S.speed : 1);

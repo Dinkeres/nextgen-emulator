@@ -1,0 +1,184 @@
+/* Soul Link: "a route at dusk". Viridian, moss and thunder; red only for what died. Pixel type for
+   names and numbers, a plain legible face for reading. The one showpiece is the link cable. */
+@import '@fontsource-variable/pixelify-sans';
+@import '@fontsource/atkinson-hyperlegible/400.css';
+@import '@fontsource/atkinson-hyperlegible/700.css';
+
+.rr {
+  --v-0: #0f2b2b; --v-1: #16393a; --v-2: #204b4a; --v-3: #2f6461;
+  --ink: #e9f1df; --dim: #a3bdae; --thunder: #f6cf3c; --fainted: #ff5e78;
+  --t1: #5fe0ab; --t2: #f6cf3c; --t3: #82c8ff; --team: var(--t1);
+  --pixel: 'Pixelify Sans Variable', 'Atkinson Hyperlegible', sans-serif;
+  background: var(--v-0); color: var(--ink);
+  font: 400 16px/1.5 'Atkinson Hyperlegible', system-ui, sans-serif;
+}
+.rr:not(.rr-panel) { min-height: 100dvh; }
+.rr h1, .rr h2, .rr h3 { font-family: var(--pixel); font-weight: 600; margin: 0; letter-spacing: .01em; }
+.rr h2 { font-size: 22px; }
+.rr h3 { font-size: 16px; color: var(--dim); }
+.rr small { display: block; color: var(--dim); font-size: 13.5px; }
+.rr p { margin: 0; }
+.rr input, .rr select, .rr button { font: inherit; }
+.rr input, .rr select, .rr-btn, .rr-icon, .rr-row, .rr-back, .rr-panel-toggle { color: inherit; }
+.rr :focus-visible { outline: 3px solid var(--thunder); outline-offset: 2px; }
+.rr svg { width: 18px; height: 18px; flex: none; }
+
+.rr-bar { display: flex; align-items: center; gap: 12px; padding: 14px var(--gutter, 24px); color: var(--dim); }
+.rr-back { display: grid; place-items: center; width: 40px; height: 40px; border: 0; background: none; cursor: pointer; color: var(--ink); }
+.rr-back:hover { color: var(--thunder); }
+.rr-page { max-width: 1120px; margin: 0 auto; padding: 8px var(--gutter, 24px) 64px; display: grid; gap: 36px; }
+.rr-dim { color: var(--dim); }
+.rr-bad { color: var(--fainted); }
+.rr-empty { color: var(--dim); }
+
+/* the one page-load moment: the cable draws itself under the title */
+.rr-hero { position: relative; display: grid; gap: 14px; justify-items: start; padding: 28px 0 76px; }
+.rr-hero h1 { font-size: clamp(64px, 13vw, 132px); line-height: .9; color: var(--thunder); }
+.rr-hero p { max-width: 54ch; font-size: 19px; }
+.rr .rr-hero-cable { position: absolute; left: 0; right: 0; bottom: 0; width: 100%; height: 44px; overflow: visible; }
+.rr-hero-cable path { fill: none; stroke: var(--v-3); stroke-width: 7; stroke-linecap: square; stroke-dasharray: 1000; animation: rr-draw 1.3s steps(24) both; }
+.rr-hero-cable .cut { stroke: var(--fainted); animation-delay: 1s; }
+@keyframes rr-draw { from { stroke-dashoffset: 1000; } to { stroke-dashoffset: 0; } }
+@media (prefers-reduced-motion: reduce) { .rr-hero-cable path { animation: none; } }
+
+.rr-go { display: inline-flex; align-items: center; gap: 10px; padding: 14px 24px; border: 0; cursor: pointer;
+  background: var(--thunder); color: #17230f; font-family: var(--pixel); font-size: 22px; font-weight: 600;
+  box-shadow: 0 5px 0 #a98a16; }
+.rr-go:hover:not(:disabled) { transform: translateY(1px); box-shadow: 0 4px 0 #a98a16; }
+.rr-go:active:not(:disabled) { transform: translateY(5px); box-shadow: none; }
+.rr-go:disabled { opacity: .45; cursor: default; box-shadow: none; }
+.rr-go.small { font-size: 18px; padding: 10px 18px; }
+.rr-btn { display: inline-flex; align-items: center; gap: 8px; padding: 9px 14px; cursor: pointer; font-weight: 700;
+  background: var(--v-2); border: 2px solid var(--v-3); }
+.rr-btn:hover:not(:disabled) { border-color: var(--thunder); }
+.rr-btn:disabled { opacity: .5; cursor: default; }
+.rr-btn.ghost { background: none; }
+.rr-icon { display: grid; place-items: center; width: 36px; height: 36px; background: none; border: 2px solid var(--v-3); cursor: pointer; flex: none; }
+.rr-icon:hover, .rr-icon[aria-pressed='true'] { border-color: var(--thunder); color: var(--thunder); }
+
+.rr-split { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(280px, 1fr); gap: 40px; align-items: start; }
+.rr-side { display: grid; gap: 32px; }
+.rr-sec { display: grid; gap: 10px; }
+.rr-row { display: flex; justify-content: space-between; align-items: center; gap: 14px; width: 100%; padding: 12px 0;
+  background: none; border: 0; border-bottom: 2px solid var(--v-1); text-align: left; }
+.rr-runrow { cursor: pointer; }
+.rr-runrow:hover b { color: var(--thunder); }
+.rr-pair { display: flex; gap: 6px; }
+.rr-tally { text-align: right; flex: none; }
+.rr-tally em { font-style: normal; font-family: var(--pixel); font-size: 17px; color: var(--dim); }
+.rr-tally em.win { color: var(--thunder); }
+.rr-tally em.live { color: var(--t1); }
+.rr-inline { display: flex; gap: 8px; margin-top: 6px; }
+.rr input:not([type='radio']), .rr select { width: 100%; min-width: 0; padding: 10px 12px; background: var(--v-1); border: 2px solid var(--v-2); }
+.rr-records { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px 18px; margin: 0; }
+.rr-records dt { color: var(--dim); font-size: 14px; }
+.rr-records dd { margin: 0; font-family: var(--pixel); font-size: 30px; line-height: 1.15; color: var(--thunder); }
+
+.rr-scrim { position: fixed; inset: 0; z-index: 60; display: grid; place-items: center; padding: 16px; background: rgba(6, 22, 22, .8); overflow: auto; }
+.rr-dialog { width: 100%; max-width: 540px; display: grid; gap: 16px; padding: 24px; background: var(--v-1); border: 3px solid var(--v-3); }
+.rr-name { font-family: var(--pixel); font-size: 24px; }
+.rr-modes { display: grid; gap: 8px; }
+.rr-modes label { display: block; padding: 12px 14px; border: 2px solid var(--v-2); cursor: pointer; }
+.rr-modes label.on { border-color: var(--thunder); }
+.rr-modes label:focus-within { outline: 3px solid var(--thunder); outline-offset: 2px; }
+.rr-modes input { position: absolute; opacity: 0; }
+.rr-field { display: grid; gap: 6px; color: var(--dim); font-size: 14px; }
+.rr-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+.rr-dialog .rr-actions { justify-content: flex-end; }
+.rr-actions.start { margin-top: 22px; }
+
+/* lobby */
+.rr-title { font-size: clamp(38px, 7vw, 68px); line-height: 1; color: var(--thunder); }
+.rr-need { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; justify-content: space-between; padding: 14px 16px; border: 2px solid var(--thunder); }
+.rr-lobby { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(280px, 1fr); gap: 40px; align-items: start; }
+.rr-teams { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 20px; }
+.rr-team { display: grid; gap: 12px; align-content: start; padding-top: 10px; border-top: 6px solid var(--team); }
+.rr-team.t2 { --team: var(--t2); } .rr-team.t3 { --team: var(--t3); }
+.rr-team h2 { color: var(--team); }
+.rr-team ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.rr-team li { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 9px 12px; background: var(--v-1); }
+.rr-team li span { display: inline-flex; gap: 6px; align-items: center; font-weight: 700; }
+.rr-team li svg { width: 15px; height: 15px; color: var(--thunder); }
+.rr-team li.open { background: none; outline: 2px dashed var(--v-2); outline-offset: -2px; }
+.rr-team li.open span { color: var(--dim); font-weight: 400; }
+.rr-team li.off { opacity: .55; }
+
+.rr-chat { display: grid; gap: 8px; }
+.rr-chat .log { display: grid; gap: 4px; align-content: start; height: 150px; overflow: auto; font-size: 14.5px; }
+.rr-chat form { display: flex; gap: 6px; }
+.rr-wait { display: grid; place-content: center; justify-items: center; gap: 14px; min-height: 100dvh; padding: 16px; text-align: center; font-family: var(--pixel); font-size: 22px; }
+
+/* the link cable */
+.rr-chart { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.rr-route { display: grid; grid-template-columns: 120px minmax(0, 1fr) auto; gap: 12px; align-items: center; }
+.rr-area { font-size: 14px; color: var(--dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rr-note { font-size: 13.5px; color: var(--dim); }
+.rr-route.dead .rr-note { color: var(--fainted); }
+.rr-route.linked .rr-note { color: var(--team); }
+.rr-cable { position: relative; display: flex; justify-content: space-between; gap: 10px; min-width: 0; }
+.rr-cable::before { content: ''; position: absolute; left: 0; right: 0; top: 50%; height: 5px; margin-top: -2.5px; background: var(--v-3); }
+.rr-route.linked .rr-cable::before { background: var(--team); }
+/* cut in two pieces, with a gap where it snapped */
+.rr-route.dead .rr-cable::before { background: linear-gradient(90deg, var(--fainted) 0 44%, transparent 44% 56%, var(--fainted) 56%); }
+.rr-mon { position: relative; flex: 0 1 auto; min-width: 0; padding: 3px 9px; font-family: var(--pixel); font-size: 15px;
+  background: var(--v-2); border: 2px solid var(--v-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rr-route.linked .rr-mon { border-color: var(--team); }
+.rr-route.dead .rr-mon { border-color: var(--fainted); color: var(--fainted); text-decoration: line-through; background: var(--v-0); }
+.rr-mon.empty { color: var(--dim); background: var(--v-0); border-style: dashed; text-decoration: none; }
+.rr-chart.compact .rr-route { grid-template-columns: 1fr; gap: 3px; }
+.rr-chart.compact .rr-mon { font-size: 13px; padding: 1px 6px; }
+
+/* in the game */
+.player.has-run canvas.screen { width: calc(100% - 320px); }
+.player.has-run .hud { right: 320px; }
+.rr-panel { position: fixed; z-index: 40; top: 0; right: 0; bottom: 0; width: 320px; overflow: auto; border-left: 3px solid var(--v-2); }
+.rr-panel.shut { width: auto; bottom: auto; border: 0; background: none; }
+.rr-panel-toggle { position: absolute; top: 10px; right: 12px; z-index: 1; padding: 4px 10px; background: var(--v-2); border: 2px solid var(--v-3); cursor: pointer; font-size: 14px; }
+.rr-panel-body { display: grid; gap: 16px; padding: 14px 14px 18px; }
+.rr-panel-body h2 { font-size: 20px; padding-right: 88px; color: var(--thunder); overflow-wrap: anywhere; }
+.rr-mate { display: flex; align-items: center; gap: 8px; padding: 7px 0; border-bottom: 2px solid var(--v-1); }
+.rr-mate > span:first-child { flex: 1; min-width: 0; }
+.rr-mate small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rr-badges { font-family: var(--pixel); font-size: 22px; color: var(--thunder); min-width: 18px; text-align: right; }
+.rr-links { display: grid; gap: 8px; }
+.rr-watch img { display: block; width: 100%; image-rendering: pixelated; }
+.rr-rival { display: flex; justify-content: space-between; gap: 10px; font-size: 14.5px; color: var(--dim); }
+.rr-rival.t1 b { color: var(--t1); } .rr-rival.t2 b { color: var(--t2); } .rr-rival.t3 b { color: var(--t3); }
+.rr-panel .rr-chat .log { height: 100px; }
+
+.rr-alert { position: fixed; z-index: 45; top: 18px; left: calc((100% - 320px) / 2); transform: translateX(-50%);
+  display: flex; align-items: center; gap: 14px; max-width: min(90vw, 460px); padding: 12px 18px;
+  background: #3a1220; color: #ffe6ea; border: 3px solid #ff5e78; font: 400 15px/1.35 'Atkinson Hyperlegible', sans-serif;
+  animation: rr-drop .25s steps(5) both; }
+.rr-alert svg { width: 26px; height: 26px; color: #ff5e78; flex: none; }
+.rr-alert b { display: block; font-family: 'Pixelify Sans Variable', sans-serif; font-size: 22px; font-weight: 600; }
+.rr-alert.hard { top: 38%; padding: 20px 26px; }
+.rr-alert.hard b { font-size: 34px; }
+@keyframes rr-drop { from { translate: 0 -16px; opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .rr-alert { animation: none; } }
+
+/* summary */
+.rr-result { display: grid; gap: 8px; }
+.rr-result h1 { font-size: clamp(40px, 8vw, 76px); line-height: 1; }
+.rr-verdict { display: flex; align-items: center; gap: 10px; font-family: var(--pixel); font-size: 28px; color: var(--thunder); }
+.rr-verdict svg { width: 28px; height: 28px; }
+.rr-result + .rr-teams .rr-records { grid-template-columns: repeat(3, 1fr); }
+.rr-time { list-style: none; margin: 0; padding: 0; display: grid; }
+.rr-time li { display: grid; grid-template-columns: 64px 1fr; gap: 12px; padding: 7px 0; border-bottom: 2px solid var(--v-1); }
+.rr-time time { color: var(--dim); font-size: 14px; }
+.rr-time .ev-death, .rr-time .ev-wipe, .rr-time .ev-missed { color: var(--fainted); }
+.rr-time .ev-badge, .rr-time .ev-clear { color: var(--thunder); }
+.rr-graves { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.rr-graves li { display: flex; gap: 10px; align-items: flex-start; }
+.rr-graves svg { color: var(--fainted); margin-top: 3px; }
+.rr-graves b { font-family: var(--pixel); font-size: 18px; font-weight: 500; }
+
+@media (max-width: 860px) {
+  .rr-split, .rr-lobby { grid-template-columns: 1fr; }
+  .rr-route { grid-template-columns: 1fr; gap: 3px; }
+  /* phones: the team panel floats over the game and starts closed by the toggle */
+  .player.has-run canvas.screen { width: 100%; }
+  .player.has-run .hud { right: 0; }
+  .rr-panel { width: min(86vw, 320px); }
+  .rr-alert { left: 50%; }
+}

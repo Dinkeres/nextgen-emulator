@@ -4,7 +4,7 @@
 // (which stores a salted PBKDF2 hash); this page keeps just the session token.
 import { Store } from './store.ts';
 
-export const ACCOUNT_API = 'https://horizon-test.luvrookie1.workers.dev';
+export const ACCOUNT_API: string = import.meta.env.VITE_ACCOUNT_API ?? 'https://horizon-test.luvrookie1.workers.dev';
 const KEY = 'horizon-test-session'; // the Horizon site's key: shared sign-in on the same origin
 
 export interface Account { username: string }

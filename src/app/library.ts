@@ -41,7 +41,7 @@ export async function ensureHomebrew() {
 
 export async function romFor(g: Game): Promise<ArrayBuffer> {
   if (g.bundled) return (await fetch(homebrewUrl(g.fileName))).arrayBuffer();
-  const b = await db.rom(g.id);
+  const b = await db.rom(g.romId ?? g.id);
   if (!b) throw new Error('The ROM for this game is missing. Add the file again.');
   return b.arrayBuffer();
 }

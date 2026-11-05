@@ -58,3 +58,6 @@ bench/basecores/
 *.3dsx
 *.cxi.*
 /3ds-work/
+
+# Brainstorming mockups
+.superpowers/

@@ -12,6 +12,7 @@ export interface Game {
   favorite: boolean;
   cover?: Blob;          // user-provided art only
   bundled?: boolean;     // shipped homebrew (ROM fetched from /homebrew, not stored)
+  romId?: string;        // a Soul Link run's copy of a game: its saves are its own, its ROM is this one
   settings?: Record<string, unknown>; // per-game overrides
   cheats?: Cheat[];
 }

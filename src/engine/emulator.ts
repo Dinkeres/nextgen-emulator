@@ -7,6 +7,7 @@ import type { DisplayOptions } from './renderer.ts';
 import { Renderer } from './renderer.ts';
 import type { NetMsg } from '../net/rollback.ts';
 import type { QzMsg } from '../net/quetzal.ts';
+import type { SoulReport } from '../net/soullink.ts';
 
 export interface StartOptions {
   coreUrl: string;
@@ -35,6 +36,7 @@ export interface Events {
   desync?: (frame: number) => void;
   qz?: (m: QzMsg) => void;
   qzStatus?: (text: string) => void;
+  sl?: (r: SoulReport) => void;
 }
 
 const AUDIO_CAP = 16384; // frames (~340ms at 48k)
@@ -136,6 +138,7 @@ export class Emulator {
       case 'notice': this.ev.notice?.(m.code); break;
       case 'qz': this.ev.qz?.(m.msg); break;
       case 'qzStatus': this.ev.qzStatus?.(m.text); break;
+      case 'sl': this.ev.sl?.(m.report); break;
       case 'error':
         if (this.errorWaiters.length) { this.errorWaiters.forEach(f => f(new Error(m.message))); this.errorWaiters = []; }
         else this.ev.error?.(m.message);
@@ -237,6 +240,9 @@ export class Emulator {
     this.ev.qz = send; this.ev.qzStatus = status; this.post({ type: 'qzStart', host });
   }
   qzReceive(msg: QzMsg) { this.post({ type: 'qz', msg }); }
+  /** Soul Link: start reading this game; reports come back through `send`. */
+  soulStart(send: (r: SoulReport) => void) { this.ev.sl = send; this.post({ type: 'slStart' }); }
+  soulDead(pids: string[]) { this.post({ type: 'slDead', pids }); }
 
   destroy() {
     cancelAnimationFrame(this.raf);

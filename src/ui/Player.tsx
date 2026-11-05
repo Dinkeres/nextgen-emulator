@@ -18,10 +18,13 @@ import { TouchControls } from './TouchControls.tsx';
 import { Cheats } from './Cheats.tsx';
 import type { Nav } from './App.tsx';
 import type { NetSession } from '../net/session.ts';
+import type { RunConn } from '../app/runs.ts';
 
 type Panel = null | 'save' | 'load' | 'settings' | 'controls' | 'cheats';
 
-export function Player({ game, slot, fresh, nav, net }: { game: Game; slot?: number; fresh?: boolean; nav: Nav; net?: NetSession }) {
+export function Player({ game, slot, fresh, nav, net, run }: { game: Game; slot?: number; fresh?: boolean; nav: Nav; net?: NetSession; run?: RunConn }) {
+  /** Multiplayer and Soul Link runs: no rewinding, loading or speeding past what happened. */
+  const locked = !!net || !!run;
   const s = useStore(settings);
   const cfg = effective(s, game);
   const sys = SYSTEMS[game.system];
@@ -77,6 +80,27 @@ export function Player({ game, slot, fresh, nav, net }: { game: Game; slot?: num
 
   const sess = () => sessRef.current!;
 
+  useEffect(() => {
+    if (!run || phase !== 'playing') return;
+    sess().emu.soulStart(r => run.report(r));
+    let last = '';
+    const sync = () => {
+      const dead = run.myTeam?.dead[run.me] ?? [];
+      const key = dead.join();
+      if (key !== last) { last = key; sess().emu.soulDead(dead); }
+    };
+    sync();
+    const off = run.sub(sync);
+    const frames = window.setInterval(async () => {
+      if (!run.watched.includes(run.me)) return;
+      const png = await sess().emu.screenshot();
+      if (!png) return;
+      const bytes = new Uint8Array(await png.arrayBuffer());
+      run.sendFrame(btoa(String.fromCharCode(...bytes)));
+    }, 1000);
+    return () => { off(); clearInterval(frames); };
+  }, [phase]);
+
   // live-apply settings while playing
   useEffect(() => {
     if (phase !== 'playing') return;
@@ -91,10 +115,10 @@ export function Player({ game, slot, fresh, nav, net }: { game: Game; slot?: num
 
   // speed changes
   useEffect(() => {
-    if (phase !== 'playing' || net) return;
+    if (phase !== 'playing' || locked) return;
     sess().emu.setSpeed(ff ? cfg.speed.ffSpeed : slow ? cfg.speed.slowSpeed : 1);
   }, [ff, slow, phase, cfg.speed.ffSpeed, cfg.speed.slowSpeed]);
-  useEffect(() => { if (phase === 'playing' && !net) sess().emu.setRewinding(rew); }, [rew, phase]);
+  useEffect(() => { if (phase === 'playing' && !locked) sess().emu.setRewinding(rew); }, [rew, phase]);
 
   // menu pauses the game (and auto-saves)
   useEffect(() => {
@@ -120,7 +144,7 @@ export function Player({ game, slot, fresh, nav, net }: { game: Game; slot?: num
     catch (e) { toast('Save failed: ' + (e as Error).message, 'alert', 'error'); }
   };
   const loadSlot = async (n: number) => {
-    if (net) { toast("Loading states is disabled during multiplayer", 'alert', 'warn'); return; }
+    if (locked) { toast("Loading states is disabled during multiplayer", 'alert', 'warn'); return; }
     const ok = await sess().load(n);
     if (ok) { lastSlot.current = n; toast(n === 0 ? 'Loaded auto-save' : `Loaded slot ${n}`, 'upload', 'success'); setMenu(false); }
     else toast(n === 0 ? 'No auto-save yet' : `Slot ${n} is empty`, 'alert', 'warn');
@@ -137,8 +161,8 @@ export function Player({ game, slot, fresh, nav, net }: { game: Game; slot?: num
       else { await rootRef.current!.requestFullscreen({ navigationUI: 'hide' }); lockOrientation(); }
     } catch { /* iOS Safari: no element fullscreen */ }
   };
-  const exit = () => nav({ name: 'library' });
-  const setSpeedFf = (on: boolean) => { if (net) return; setFf(on); if (on) setSlow(false); };
+  const exit = () => nav({ name: run ? 'runs' : 'library' });
+  const setSpeedFf = (on: boolean) => { if (locked) return; setFf(on); if (on) setSlow(false); };
 
   useEffect(() => {
     const f = () => setFs(!!document.fullscreenElement);
@@ -162,8 +186,8 @@ export function Player({ game, slot, fresh, nav, net }: { game: Game; slot?: num
       if (ui.current.menu) return;
       if (e.code === hk.ff) { e.preventDefault(); if (cfg.speed.ffMode === 'hold') setSpeedFf(true); else setSpeedFf(!ff); return; }
       if (e.code === hk.ffToggle) { e.preventDefault(); setSpeedFf(!ff); toast(!ff ? `Fast-forward ${speedLabel(cfg.speed.ffSpeed)}` : 'Normal speed', 'fast-forward', 'info', 1200); return; }
-      if (e.code === hk.slowmo && !net) { e.preventDefault(); setSlow(v => !v); setFf(false); return; }
-      if (e.code === hk.rewind && !net) { e.preventDefault(); setRew(true); return; }
+      if (e.code === hk.slowmo && !locked) { e.preventDefault(); setSlow(v => !v); setFf(false); return; }
+      if (e.code === hk.rewind && !locked) { e.preventDefault(); setRew(true); return; }
       if (e.code === hk.save) { e.preventDefault(); saveSlot(lastSlot.current); return; }
       if (e.code === hk.load) { e.preventDefault(); loadSlot(lastSlot.current); return; }
       if (e.code === hk.screenshot) { e.preventDefault(); screenshot(); return; }
@@ -196,7 +220,7 @@ export function Player({ game, slot, fresh, nav, net }: { game: Game; slot?: num
         if (st.menu && !p.menu) { if (panel) setPanel(null); else setMenu(m => !m); }
         if (!menu) {
           if (st.ff !== p.ff) setSpeedFf(st.ff);
-          if (st.rew !== p.rew && !net) setRew(st.rew);
+          if (st.rew !== p.rew && !locked) setRew(st.rew);
         }
         prev[g.index] = st;
       }
@@ -213,7 +237,7 @@ export function Player({ game, slot, fresh, nav, net }: { game: Game; slot?: num
   const netStats = stats?.net;
 
   return (
-    <div class={`player ${hud || menu ? '' : 'hide-cursor'} ${touchMode && !menu ? 'touch-mode' : ''} sys-${sys.id}`} ref={rootRef} style={{ '--sys': sys.color }}
+    <div class={`player ${run ? 'has-run' : ''} ${hud || menu ? '' : 'hide-cursor'} ${touchMode && !menu ? 'touch-mode' : ''} sys-${sys.id}`} ref={rootRef} style={{ '--sys': sys.color }}
       onContextMenu={e => e.preventDefault()}
       onPointerMove={e => { if (e.pointerType === 'mouse') { poke(); if (mouseStylus.current) stylus(e.clientX, e.clientY, true); } }}
       onPointerDown={e => {
@@ -248,7 +272,7 @@ export function Player({ game, slot, fresh, nav, net }: { game: Game; slot?: num
 
         {touchMode && !menu && <TouchControls system={sys} input={input} editing={editTouch} onDone={() => setEditTouch(false)}
           onStylus={sys.id === 'nds' ? stylus : undefined} split={sys.id === 'nds' ? 0.66 : 0.55}
-          onMenu={() => setMenu(true)} onFf={on => setSpeedFf(cfg.speed.ffMode === 'hold' ? on : on ? !ff : ff)} onRewind={on => !net && setRew(on)} />}
+          onMenu={() => setMenu(true)} onFf={on => setSpeedFf(cfg.speed.ffMode === 'hold' ? on : on ? !ff : ff)} onRewind={on => !locked && setRew(on)} />}
 
         {!menu && !editTouch && <>
           <div class={`hud top ${hud ? '' : 'hidden'}`}>
@@ -260,16 +284,16 @@ export function Player({ game, slot, fresh, nav, net }: { game: Game; slot?: num
           <div class={`hud bottom ${hud ? '' : 'hidden'}`}>
             <div class="bar">
               <button class="hbtn" onClick={() => setMenu(true)} aria-label="Pause"><Pause /><span class="tip">Pause (Esc)</span></button>
-              {!net && <button class={`hbtn ${rew ? 'on' : ''}`} aria-label="Rewind (hold)"
+              {!locked && <button class={`hbtn ${rew ? 'on' : ''}`} aria-label="Rewind (hold)"
                 onPointerDown={() => setRew(true)} onPointerUp={() => setRew(false)} onPointerLeave={() => setRew(false)} onPointerCancel={() => setRew(false)}>
                 <Rewind /><span class="tip">Hold to rewind</span></button>}
-              {!net && <button class={`hbtn ${ff ? 'on' : ''}`} onClick={() => setSpeedFf(!ff)} aria-label="Fast-forward" aria-pressed={ff}><FastForward /><span class="tip">Fast-forward ({speedLabel(cfg.speed.ffSpeed)})</span></button>}
-              {!net && <button class={`hbtn opt ${slow ? 'on' : ''}`} onClick={() => { setSlow(!slow); setFf(false); }} aria-label="Slow motion" aria-pressed={slow}><Snail /><span class="tip">Slow motion</span></button>}
+              {!locked && <button class={`hbtn ${ff ? 'on' : ''}`} onClick={() => setSpeedFf(!ff)} aria-label="Fast-forward" aria-pressed={ff}><FastForward /><span class="tip">Fast-forward ({speedLabel(cfg.speed.ffSpeed)})</span></button>}
+              {!locked && <button class={`hbtn opt ${slow ? 'on' : ''}`} onClick={() => { setSlow(!slow); setFf(false); }} aria-label="Slow motion" aria-pressed={slow}><Snail /><span class="tip">Slow motion</span></button>}
               <button class="hbtn" onClick={() => saveSlot(lastSlot.current)} aria-label="Quick save"><Save /><span class="tip">Save to slot {lastSlot.current} (F5)</span></button>
-              {!net && <button class="hbtn" onClick={() => loadSlot(lastSlot.current)} aria-label="Quick load"><Upload /><span class="tip">Load slot {lastSlot.current} (F8)</span></button>}
+              {!locked && <button class="hbtn" onClick={() => loadSlot(lastSlot.current)} aria-label="Quick load"><Upload /><span class="tip">Load slot {lastSlot.current} (F8)</span></button>}
               <button class="hbtn opt" onClick={screenshot} aria-label="Screenshot"><Camera /><span class="tip">Screenshot</span></button>
               <button class="hbtn opt" onClick={() => updateSettings(x => ({ ...x, audio: { ...x.audio, muted: !x.audio.muted } }))} aria-label={cfg.audio.muted ? 'Unmute' : 'Mute'}>{cfg.audio.muted ? <VolumeX /> : <Volume2 />}<span class="tip">{cfg.audio.muted ? 'Unmute' : 'Mute'}</span></button>
-              {sys.maxPlayers > 1 && !net && <button class="hbtn opt" onClick={() => nav({ name: 'lobby', game })} aria-label="Multiplayer"><Users /><span class="tip">Multiplayer</span></button>}
+              {sys.maxPlayers > 1 && !locked && <button class="hbtn opt" onClick={() => nav({ name: 'lobby', game })} aria-label="Multiplayer"><Users /><span class="tip">Multiplayer</span></button>}
             </div>
           </div>
         </>}
@@ -283,12 +307,12 @@ export function Player({ game, slot, fresh, nav, net }: { game: Game; slot?: num
               <div class="gsys"><SysBadge system={game.system} />{net ? 'Online match' : 'Paused'}</div>
               <MenuItem icon={Play} label="Resume" primary kbd="Esc" onClick={() => setMenu(false)} autofocus />
               <MenuItem icon={Save} label="Save state" onClick={() => setPanel('save')} on={panel === 'save'} />
-              {!net && <MenuItem icon={Upload} label="Load state" onClick={() => setPanel('load')} on={panel === 'load'} />}
+              {!locked && <MenuItem icon={Upload} label="Load state" onClick={() => setPanel('load')} on={panel === 'load'} />}
               <MenuItem icon={Gear} label="Settings" onClick={() => setPanel('settings')} on={panel === 'settings'} />
               <MenuItem icon={Gamepad2} label="Controls" onClick={() => setPanel('controls')} on={panel === 'controls'} />
-              {!net && <MenuItem icon={Wand2} label="Cheats" onClick={() => setPanel('cheats')} on={panel === 'cheats'} />}
-              {sys.maxPlayers > 1 && !net && <MenuItem icon={Users} label="Multiplayer" onClick={() => nav({ name: 'lobby', game })} />}
-              {!net && <MenuItem icon={RotateCcw} label="Reset game" onClick={() => { sess().emu.reset(); setMenu(false); toast('Game reset', 'rotate', 'info'); }} />}
+              {!locked && <MenuItem icon={Wand2} label="Cheats" onClick={() => setPanel('cheats')} on={panel === 'cheats'} />}
+              {sys.maxPlayers > 1 && !locked && <MenuItem icon={Users} label="Multiplayer" onClick={() => nav({ name: 'lobby', game })} />}
+              {!locked && <MenuItem icon={RotateCcw} label="Reset game" onClick={() => { sess().emu.reset(); setMenu(false); toast('Game reset', 'rotate', 'info'); }} />}
               <MenuItem icon={LogOut} label="Exit to library" onClick={exit} />
             </nav>
             <div class={`panel ${panel ? '' : 'empty-panel'}`}>

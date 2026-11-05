@@ -8,13 +8,16 @@ import { Library } from './Library.tsx';
 import { Player } from './Player.tsx';
 import { SettingsPage } from './Settings.tsx';
 import { Lobby } from './Lobby.tsx';
+import { RunScreen, RunsHome } from './Runs.tsx';
 import type { NetSession } from '../net/session.ts';
 
 export type View =
   | { name: 'library' }
   | { name: 'settings'; section?: string }
   | { name: 'play'; game: Game; slot?: number; fresh?: boolean; net?: NetSession }
-  | { name: 'lobby'; game?: Game; room?: string };
+  | { name: 'lobby'; game?: Game; room?: string }
+  | { name: 'runs' }
+  | { name: 'run'; id: string };
 export type Nav = (v: View) => void;
 
 export function App() {
@@ -76,6 +79,8 @@ export function App() {
         view.name === 'library' ? <Library nav={nav} /> :
         view.name === 'settings' ? <SettingsPage nav={nav} section={view.section} /> :
         view.name === 'lobby' ? <Lobby nav={nav} game={view.game} room={view.room} /> :
+        view.name === 'runs' ? <RunsHome nav={nav} /> :
+        view.name === 'run' ? <RunScreen key={view.id} id={view.id} nav={nav} /> :
         <Player key={view.game.id + (view.slot ?? '') + (view.fresh ? 'f' : '')} game={view.game} slot={view.slot} fresh={view.fresh} nav={nav} net={view.net} />}
       {dragging && <div class="dropzone"><div><Upload /><br />Drop to add to your library</div></div>}
       <Toasts />
